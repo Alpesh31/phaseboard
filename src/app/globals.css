@@ -31,3 +31,14 @@
  .addTask,.quickAdd{flex-shrink:0}
  .modal{height:100dvh}
 }
+
+/* V5: mobile uses one active phase, not a horizontally overflowing row.
+   Desktop continues to use the original five-column board. */
+@media (max-width:700px) {
+  .board { display:block; width:100%; overflow:visible; padding:0 0 env(safe-area-inset-bottom); touch-action:pan-y; }
+  .board .column { display:none; width:100%; min-width:0; max-width:100%; height:auto; max-height:none; min-height:0; border-radius:0; }
+  .board .column[data-mobile-active="true"] { display:flex; min-height:calc(100dvh - 250px); }
+  .board .cards { overflow-y:visible; flex:0 1 auto; }
+  .mobilePhases { position:relative; top:auto; }
+  .card { touch-action:pan-y; }
+}
