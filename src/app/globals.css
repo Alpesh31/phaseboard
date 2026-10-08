@@ -10,3 +10,24 @@
   .topbar { padding-top: max(10px, env(safe-area-inset-top)); }
   .quickModal { max-height: 90dvh; overflow-y: auto; }
 }
+
+/* V4: compact, swipeable single-column mobile board. Desktop styles remain unchanged. */
+.mobilePhases{display:none}
+@media(max-width:700px){
+ html,body{overflow-x:hidden}
+ .hero{padding-top:14px;padding-bottom:10px}
+ .heroHint{display:none}
+ .progressBox{margin-top:8px}
+ .mobilePhases{display:flex;gap:7px;overflow-x:auto;padding:8px 16px 12px;scrollbar-width:none;position:sticky;top:64px;z-index:4;background:#f5f7fb}
+ .mobilePhases::-webkit-scrollbar{display:none}
+ .mobilePhases button{flex:0 0 auto;background:#e8edf5;color:#536078;border:1px solid #dae0e9;border-radius:10px;padding:10px 12px;min-height:42px;font-size:12px}
+ .mobilePhases button.active{background:#172033;color:#fff;border-color:#172033}
+ .board{gap:0;padding:0 0 calc(20px + env(safe-area-inset-bottom));scroll-snap-type:x mandatory;scrollbar-width:none;align-items:stretch}
+ .board::-webkit-scrollbar{display:none}
+ .column{flex:0 0 100%;width:100%;min-width:100%;min-height:0;height:calc(100dvh - 245px - env(safe-area-inset-top));max-height:calc(100dvh - 245px - env(safe-area-inset-top));border-radius:0;border-left:0;border-right:0;scroll-snap-align:start;scroll-snap-stop:always;display:flex;flex-direction:column;padding:14px 16px}
+ .columnHead{flex-shrink:0}
+ .cards{overflow-y:auto;overscroll-behavior-y:contain;min-height:0;flex:1;padding:2px 1px 14px;scrollbar-width:thin}
+ .card{touch-action:pan-y;flex-shrink:0}
+ .addTask,.quickAdd{flex-shrink:0}
+ .modal{height:100dvh}
+}

@@ -1,5 +1,5 @@
 'use client';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { seed } from '@/lib/seed';
 import { BoardData, Priority, Status, Task } from '@/lib/types';
 
@@ -20,6 +20,7 @@ function migrate(raw:any):BoardData{
 }
 
 export default function Home(){
+ const boardRef=useRef<HTMLElement|null>(null); const [activePhase,setActivePhase]=useState(0);
  const [board,setBoard]=useState<BoardData>(seed); const [ready,setReady]=useState(false);
  const [selected,setSelected]=useState<Task|null>(null); const [newPhase,setNewPhase]=useState<string|null>(null); const [quickOpen,setQuickOpen]=useState(false);
  useEffect(()=>{try{const saved=localStorage.getItem(STORAGE_KEY)||localStorage.getItem(OLD_STORAGE_KEY);if(saved)setBoard(migrate(JSON.parse(saved)))}catch{}setReady(true)},[]);
@@ -37,7 +38,8 @@ export default function Home(){
  return <main>
   <header className="topbar"><div><div className="brand">Phaseboard</div><div className="tagline">Capture ideas. Turn them into action.</div></div><button className="quickButton" onClick={()=>setQuickOpen(true)}>＋ Quick Add</button></header>
   <section className="hero"><div><span className="eyebrow">PROJECT</span><input className="projectTitle" value={board.projectName} onChange={e=>setBoard({...board,projectName:e.target.value})}/><p className="heroHint">Add thoughts to Ideas / To-Do, then move them into a phase when you're ready.</p></div><div className="progressBox"><div><b>{progress}%</b> complete</div><div className="progress"><span style={{width:`${progress}%`}}/></div><small>{completed} of {board.tasks.length} items completed</small></div></section>
-  <section className="board">
+  <nav className="mobilePhases" aria-label="Choose phase">{board.phases.map((phase,index)=><button key={phase.id} type="button" className={activePhase===index?'active':''} aria-current={activePhase===index?'step':undefined} onClick={()=>{setActivePhase(index);const el=boardRef.current;const col=el?.children[index] as HTMLElement|undefined;if(el&&col)el.scrollTo({left:col.offsetLeft-el.offsetLeft,behavior:'smooth'});}}>{phase.id==='ideas'?'Ideas':phase.name}</button>)}</nav>
+  <section className="board" ref={boardRef} onScroll={e=>{if(window.innerWidth>700)return;const el=e.currentTarget;const index=Math.round(el.scrollLeft/Math.max(1,el.clientWidth));setActivePhase(Math.min(board.phases.length-1,Math.max(0,index)));}}>
    {board.phases.map((phase,index)=>{const stat=phaseStats[phase.id];const isIdeas=phase.id==='ideas';return <div className={`column ${isIdeas?'ideasColumn':''}`} key={phase.id} onDragOver={e=>e.preventDefault()} onDrop={e=>{const id=e.dataTransfer.getData('taskId');if(id)moveTask(id,phase.id)}}>
     <div className="columnHead"><div><span className="phaseNum">{isIdeas?'INBOX':`PHASE ${index}`}</span><h2>{phase.name}</h2><p>{stat.done}/{stat.total} completed</p></div><span className="count">{stat.total}</span></div>
     <div className="cards">{board.tasks.filter(t=>t.phaseId===phase.id).map(task=><article draggable onDragStart={e=>e.dataTransfer.setData('taskId',task.id)} onClick={()=>setSelected(task)} className="card" key={task.id}>

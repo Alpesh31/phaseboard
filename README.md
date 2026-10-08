@@ -32,3 +32,7 @@ This version adds a web app manifest, iOS/Android icons, standalone display meta
 Deploy over HTTPS (for example, on Vercel). On iPhone open the URL in Safari and use Share → Add to Home Screen. On Android use Chrome → Install app / Add to Home screen.
 
 **Important:** data is still stored in each browser's localStorage. A home-screen install may use a separate storage container from Safari on some iOS versions; tasks are not guaranteed to transfer from the browser to the installed app. Back up important data before switching. This release does not implement offline caching or push notifications.
+
+
+## V4 mobile board
+On screens up to 700px wide, Phaseboard displays one full-width phase at a time. Swipe sideways to switch phases or tap the phase tabs. Scroll within the current phase to view its tasks. Desktop keeps the existing multi-column board. The task editor's **Move to** dropdown remains available on mobile.
