@@ -23,3 +23,12 @@ A mobile-friendly single-project idea/to-do and phased project tracker built wit
 
 ## Later
 When the MVP workflow is approved, local storage can be replaced with Supabase for shared multi-user data and authentication.
+
+
+## V3: installable mobile web app (PWA)
+
+This version adds a web app manifest, iOS/Android icons, standalone display metadata, and safe-area styling. The existing task UI and `phaseboard-v2` browser storage are unchanged. No backend is required.
+
+Deploy over HTTPS (for example, on Vercel). On iPhone open the URL in Safari and use Share → Add to Home Screen. On Android use Chrome → Install app / Add to Home screen.
+
+**Important:** data is still stored in each browser's localStorage. A home-screen install may use a separate storage container from Safari on some iOS versions; tasks are not guaranteed to transfer from the browser to the installed app. Back up important data before switching. This release does not implement offline caching or push notifications.
