@@ -77,3 +77,16 @@
 .contributorChip button{min-height:26px;min-width:26px;padding:0;border-radius:50%;background:#d6e2f4;color:#243e69;font-size:18px}
 .contributorHelp{font-size:11px;color:#778298;margin:8px 0 0}
 @media(max-width:700px){.taskTags{gap:4px}.taskTags .status,.taskTags .importance,.taskTags .priority{font-size:9px;padding:4px 5px}}
+
+/* V8 authentication */
+.authPage{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f4f6fa;color:#172033}
+.authCard{width:min(100%,420px);display:flex;flex-direction:column;gap:16px;padding:30px;border:1px solid #dce2ed;border-radius:18px;background:#fff;box-shadow:0 12px 38px #17203313}
+.authBrand{font-weight:800;font-size:19px;color:#2349a3}
+.authCard h1{font-size:27px;margin:0}.authCard p{margin:0;line-height:1.5;color:#4e5b72}
+.authCard label{display:flex;flex-direction:column;gap:7px;font-weight:600;font-size:14px}
+.authCard input{width:100%;min-height:43px;padding:10px 12px;border:1px solid #b8c4d5;border-radius:9px;font:inherit}
+.authCard button{min-height:44px;background:#2446a8;color:white;border:0;border-radius:9px;font-weight:700;cursor:pointer}
+.authCard button:disabled{opacity:.65;cursor:wait}.authCard small{color:#68758a;line-height:1.5}
+.authCard .authError{color:#aa2634}
+.authSession{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:8px 20px;background:#edf2fa;color:#25344f;font-size:12px;flex-wrap:wrap}
+.authSession button{background:transparent;border:1px solid #b9c6dd;border-radius:7px;padding:6px 11px;cursor:pointer;color:inherit}
