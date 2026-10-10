@@ -141,3 +141,23 @@
 .contributorOptions small{color:#6c778b}
 .contributorOptions p{padding:12px;color:#6c778b}
 @media(max-width:700px){.authSession{padding:7px 12px}.profileName{max-width:100px}.topbar{padding-right:150px}}
+/* V10.2.1: Fix Quick Add and Profile overlap */
+
+/* Reserve space for the profile control on desktop */
+@media (min-width: 701px) {
+  .topbar {
+    padding-right: 260px;
+  }
+
+  .quickButton {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}
+
+/* Keep existing mobile layout */
+@media (max-width: 700px) {
+  .topbar {
+    padding-right: 150px;
+  }
+}
