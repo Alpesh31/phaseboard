@@ -1,3 +1,4 @@
+import UserManagement from '@/components/user-management';
 'use client';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { BoardData, Priority, Status, Importance, Task } from '@/lib/types';
@@ -22,7 +23,7 @@ export default function Home(){
  const [members,setMembers]=useState<{user_id:string;role:string}[]>([]);
  const [comments,setComments]=useState<{id:string;author_id:string;body:string;created_at:string}[]>([]);
  const [commentDraft,setCommentDraft]=useState('');
- const [adminPanel,setAdminPanel]=useState(false);
+ const [adminPanel,setAdminPanel]=useState(false); const [usersOpen,setUsersOpen]=useState(false);
  const [phaseAccessOpen,setPhaseAccessOpen]=useState<Record<string,boolean>>({});
  const [attachmentsPaths,setAttachmentsPaths]=useState<Record<string,string>>({});
  const editable=access?.role==='admin'||access?.role==='editor';
@@ -94,7 +95,7 @@ export default function Home(){
  return <main>
   {error&&<p role="alert" className="imageError">{error} <button onClick={()=>void refresh()}>Retry</button></p>}
   <header className="topbar"><div><div className="brand">Phaseboard</div><div className="tagline">Capture ideas. Turn them into action.</div></div>{editable&&<button className="quickButton" onClick={()=>setQuickOpen(true)}>＋ Quick Add</button>}</header>
-  {admin&&<section className="adminBanner"><div><strong>Admin controls</strong><p>Manage phase visibility and task access. User invitations will be added next.</p></div><button type="button" onClick={()=>setAdminPanel(v=>!v)} aria-expanded={adminPanel} aria-controls="admin-visibility-panel">{adminPanel?"Hide phase permissions":"Manage phase permissions"}</button></section>}
+  {admin&&<section className="adminBanner"><div><strong>Admin controls</strong><p>Manage phase visibility and task access. Invite users and manage access from here.</p></div><button type="button" onClick={()=>setAdminPanel(v=>!v)} aria-expanded={adminPanel} aria-controls="admin-visibility-panel">{adminPanel?"Hide phase permissions":"Manage phase permissions"}</button><button type="button" onClick={()=>setUsersOpen(true)}>Manage Users</button></section>}
   {admin&&adminPanel&&<section id="admin-visibility-panel" className="adminPanel" aria-label="Phase visibility settings"><h2>Phase permissions</h2><p>Everyone means all project members. Restricted phases are visible only to selected users and Admins.</p>{board.phases.map(phase=><div className="adminPhaseRow" key={phase.id}><strong>{phase.name}</strong><label><input type="checkbox" checked={visibility[phase.id]??true} onChange={e=>void changeVisibility("phase",phase.id,e.target.checked)}/> Visible to everyone</label>{visibility[phase.id]===false&&<div className="adminMemberList"><button type="button" className="ghost" onClick={()=>void loadAccess("phase",phase.id)}>Refresh permitted users</button>{members.filter(m=>m.role!=="admin").length===0?<p>No Editors or Viewers have been added yet.</p>:members.filter(m=>m.role!=="admin").map(m=><label key={m.user_id}><input type="checkbox" checked={(allowed[phase.id]||[]).includes(m.user_id)} onChange={e=>void changeAccess("phase",phase.id,m.user_id,e.target.checked)}/>{m.user_id.slice(0,8)} ({m.role})</label>)}</div>}</div>)}</section>}
   <section className="hero"><div><span className="eyebrow">PROJECT</span><h1 className="projectTitle">{board.projectName}</h1><p className="heroHint">Add thoughts to Ideas / To-Do, then move them into a phase when you're ready.</p></div><div className="progressBox"><div><b>{progress}%</b> complete</div><div className="progress"><span style={{width:`${progress}%`}}/></div><small>{completed} of {board.tasks.length} items completed</small></div></section>
   <nav className="mobilePhases" aria-label="Choose phase">{board.phases.map((phase,index)=><button key={phase.id} type="button" className={activePhase===index?'active':''} aria-current={activePhase===index?'step':undefined} onClick={()=>setActivePhase(index)}>{phase.id==='ideas'?'Ideas':phase.name}</button>)}</nav>
@@ -110,6 +111,7 @@ export default function Home(){
     {editable&&(newPhase===phase.id?<form className="quickAdd" onSubmit={e=>addTask(e,phase.id)}><input name="title" autoFocus placeholder={isIdeas?'Capture an idea...':'Task title'}/><div><button>Add</button><button type="button" className="ghost" onClick={()=>setNewPhase(null)}>Cancel</button></div></form>:<button className="addTask" onClick={()=>setNewPhase(phase.id)}>＋ {isIdeas?'Add idea / to-do':'Add task'}</button>)}
    </div>})}
   </section>
+  {admin&&usersOpen&&access&&<UserManagement projectId={access.projectId} onClose={()=>setUsersOpen(false)} onChanged={()=>void refresh()}/>}
   {quickOpen&&<div className="overlay center" onMouseDown={()=>setQuickOpen(false)}><form className="quickModal" onMouseDown={e=>e.stopPropagation()} onSubmit={quickAdd}><div className="modalHead"><span>Quick Add</span><button type="button" onClick={()=>setQuickOpen(false)}>×</button></div><p>Capture it now. Organize it later.</p><input name="title" autoFocus placeholder="What's on your mind?"/><button className="wide">Add to Ideas / To-Do</button></form></div>}
   {selected&&<div className="overlay" onMouseDown={()=>setSelected(null)}><section className="modal" onMouseDown={e=>e.stopPropagation()}><div className="modalHead"><span>Task details</span><button onClick={()=>setSelected(null)}>×</button></div>
    {editable&&<fieldset className="taskEditable"><label>Title<input value={selected.title} onChange={e=>setSelected({...selected,title:e.target.value})} onBlur={()=>void updateTask(selected)}/></label>

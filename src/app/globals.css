@@ -104,3 +104,18 @@
 
 /* V9.1: discoverable admin visibility controls on desktop and mobile */
 .adminBanner{margin:16px 34px 0;padding:16px 18px;border:1px solid #cbd9f4;border-radius:14px;background:#edf3ff;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}.adminBanner strong{font-size:15px}.adminBanner p{margin:5px 0 0;color:#485a76;font-size:12px}.adminPanel{margin:12px 34px;padding:18px;border:1px solid #dce3ec;background:white;border-radius:14px}.adminPanel h2{font-size:18px;margin:0 0 8px}.adminPanel>p{font-size:13px;color:#58667c}.adminPhaseRow{padding:12px 0;border-top:1px solid #e8edf4;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.adminPhaseRow label,.adminMemberList label{display:flex;align-items:center;gap:8px;font-size:13px}.adminPhaseRow input[type=checkbox],.adminMemberList input[type=checkbox]{width:18px;height:18px}.adminMemberList{width:100%;padding:10px;background:#f6f8fc;border-radius:9px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}.adminMemberList p{font-size:12px;color:#58667c;margin:0}.taskVisibility{background:#f6f9ff;border-color:#b9cbea}.taskVisibility h3{font-size:15px;margin:0 0 12px}.permissionBox summary{min-height:28px;display:list-item;color:#273e69}.permissionBox input[type=checkbox]{height:18px;width:18px}.permissionBox button{margin:8px 0}@media(max-width:700px){.adminBanner{margin:12px 14px;padding:12px}.adminBanner button{width:100%}.adminPanel{margin:10px 14px;padding:12px}.adminPhaseRow{align-items:flex-start;flex-direction:column}}
+
+/* V10 admin user management */
+.userManagement{max-width:700px;width:min(700px,calc(100vw - 24px));max-height:90dvh;overflow:auto;}
+.inviteForm{display:grid;gap:12px;padding:16px;background:#f6f8fc;border-radius:12px;margin:18px 0;}
+.inviteForm label{display:grid;gap:6px;font-weight:600;}
+.inviteForm input,.inviteForm select{width:100%;min-width:0;padding:10px;border:1px solid #ccd4e2;border-radius:8px;background:white;}
+.memberHeading,.memberRow{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.memberRows{display:grid;gap:8px;}
+.memberRow{border:1px solid #e2e6ee;border-radius:10px;padding:12px;}
+.memberIdentity{min-width:0;flex:1;display:grid;gap:3px;overflow-wrap:anywhere;}
+.memberIdentity small{color:#58677b;}
+.memberRole select{padding:8px;border-radius:8px;border:1px solid #ccd4e2;}
+.userManagementNote{font-size:12px;color:#5a6474;}
+.srOnly{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;}
+@media(max-width:600px){.memberRow{flex-wrap:wrap;}.memberIdentity{flex-basis:100%;}.userManagement{padding:16px;}}
