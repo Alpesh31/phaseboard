@@ -35,38 +35,7 @@ export default function AuthShell({ children }: { children: ReactNode }) {
   const checkRef = useRef<(current: User | null) => Promise<void>>(async () => {});
 
   useEffect(() => {
-    const saveProfile=async(event:FormEvent<HTMLFormElement>)=>{
-    event.preventDefault();if(!client||!user)return;
-    setProfileError('');
-    const name=fullName.trim();
-    if(name.length<2){setProfileError('Enter your full name.');return;}
-    if(newPassword && (newPassword.length<8 || newPassword!==confirmPassword)){setProfileError('Passwords must match and contain at least 8 characters.');return;}
-    if(!user.user_metadata?.phaseboard_onboarded && !newPassword){setProfileError('Create a password to finish setup.');return;}
-    setProfileBusy(true);
-    try{
-      const {data,error:updateError}=await client.auth.updateUser({data:{full_name:name,phaseboard_onboarded:true},...(newPassword?{password:newPassword}:{})});
-      if(updateError)throw updateError;
-      if(data.user)setUser(data.user);
-      const {error:profileErr}=await client.from('profiles').upsert({id:user.id,display_name:name},{onConflict:'id'});
-      if(profileErr)throw profileErr;
-      setNewPassword('');setConfirmPassword('');setProfileOpen(false);
-    }catch(e){setProfileError(e instanceof Error?e.message:'Unable to save profile.');}
-    finally{setProfileBusy(false);}
-  };
-  const mustOnboard=!!user&&!user.user_metadata?.phaseboard_onboarded;
-  useEffect(()=>{if(user?.user_metadata?.full_name)setFullName(user.user_metadata.full_name)},[user?.id]);
-  const profileForm=(required:boolean)=><div className="authPage"><form className="authCard" onSubmit={saveProfile}>
-    <div className="authBrand">Phaseboard</div><h1>{required?'Finish setting up your account':'My Profile'}</h1>
-    <p>{required?'Set your full name and create a password before opening ATLAS360.':'Update your name or change your password.'}</p>
-    <label>Full name<input required minLength={2} value={fullName} onChange={e=>setFullName(e.target.value)} autoComplete="name" placeholder="First and last name"/></label>
-    <label>{required?'Create password':'New password (optional)'}<input type="password" autoComplete="new-password" minLength={8} required={required} value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label>
-    <label>Confirm password<input type="password" autoComplete="new-password" required={required||!!newPassword} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)}/></label>
-    {profileError&&<p role="alert" className="authError">{profileError}</p>}
-    <button type="submit" disabled={profileBusy}>{profileBusy?'Saving…':required?'Complete setup':'Save changes'}</button>
-    {!required&&<button type="button" className="ghost" onClick={()=>setProfileOpen(false)}>Cancel</button>}
-    {required&&<button type="button" className="ghost" onClick={()=>void signOut()}>Sign out</button>}
-  </form></div>;
-  if (!client) return;
+    if (!client) return;
     let active = true;
     const check = async (current: User | null) => {
       const id = ++requestId.current;
@@ -127,38 +96,7 @@ export default function AuthShell({ children }: { children: ReactNode }) {
 
   const signIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const saveProfile=async(event:FormEvent<HTMLFormElement>)=>{
-    event.preventDefault();if(!client||!user)return;
-    setProfileError('');
-    const name=fullName.trim();
-    if(name.length<2){setProfileError('Enter your full name.');return;}
-    if(newPassword && (newPassword.length<8 || newPassword!==confirmPassword)){setProfileError('Passwords must match and contain at least 8 characters.');return;}
-    if(!user.user_metadata?.phaseboard_onboarded && !newPassword){setProfileError('Create a password to finish setup.');return;}
-    setProfileBusy(true);
-    try{
-      const {data,error:updateError}=await client.auth.updateUser({data:{full_name:name,phaseboard_onboarded:true},...(newPassword?{password:newPassword}:{})});
-      if(updateError)throw updateError;
-      if(data.user)setUser(data.user);
-      const {error:profileErr}=await client.from('profiles').upsert({id:user.id,display_name:name},{onConflict:'id'});
-      if(profileErr)throw profileErr;
-      setNewPassword('');setConfirmPassword('');setProfileOpen(false);
-    }catch(e){setProfileError(e instanceof Error?e.message:'Unable to save profile.');}
-    finally{setProfileBusy(false);}
-  };
-  const mustOnboard=!!user&&!user.user_metadata?.phaseboard_onboarded;
-  useEffect(()=>{if(user?.user_metadata?.full_name)setFullName(user.user_metadata.full_name)},[user?.id]);
-  const profileForm=(required:boolean)=><div className="authPage"><form className="authCard" onSubmit={saveProfile}>
-    <div className="authBrand">Phaseboard</div><h1>{required?'Finish setting up your account':'My Profile'}</h1>
-    <p>{required?'Set your full name and create a password before opening ATLAS360.':'Update your name or change your password.'}</p>
-    <label>Full name<input required minLength={2} value={fullName} onChange={e=>setFullName(e.target.value)} autoComplete="name" placeholder="First and last name"/></label>
-    <label>{required?'Create password':'New password (optional)'}<input type="password" autoComplete="new-password" minLength={8} required={required} value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label>
-    <label>Confirm password<input type="password" autoComplete="new-password" required={required||!!newPassword} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)}/></label>
-    {profileError&&<p role="alert" className="authError">{profileError}</p>}
-    <button type="submit" disabled={profileBusy}>{profileBusy?'Saving…':required?'Complete setup':'Save changes'}</button>
-    {!required&&<button type="button" className="ghost" onClick={()=>setProfileOpen(false)}>Cancel</button>}
-    {required&&<button type="button" className="ghost" onClick={()=>void signOut()}>Sign out</button>}
-  </form></div>;
-  if (!client) return;
+    if (!client) return;
     setBusy(true); setError('');
     try {
       const { error: signInError } = await client.auth.signInWithPassword({ email: email.trim(), password });
@@ -167,74 +105,12 @@ export default function AuthShell({ children }: { children: ReactNode }) {
     finally { setBusy(false); }
   };
   const signOut = async () => {
-    const saveProfile=async(event:FormEvent<HTMLFormElement>)=>{
-    event.preventDefault();if(!client||!user)return;
-    setProfileError('');
-    const name=fullName.trim();
-    if(name.length<2){setProfileError('Enter your full name.');return;}
-    if(newPassword && (newPassword.length<8 || newPassword!==confirmPassword)){setProfileError('Passwords must match and contain at least 8 characters.');return;}
-    if(!user.user_metadata?.phaseboard_onboarded && !newPassword){setProfileError('Create a password to finish setup.');return;}
-    setProfileBusy(true);
-    try{
-      const {data,error:updateError}=await client.auth.updateUser({data:{full_name:name,phaseboard_onboarded:true},...(newPassword?{password:newPassword}:{})});
-      if(updateError)throw updateError;
-      if(data.user)setUser(data.user);
-      const {error:profileErr}=await client.from('profiles').upsert({id:user.id,display_name:name},{onConflict:'id'});
-      if(profileErr)throw profileErr;
-      setNewPassword('');setConfirmPassword('');setProfileOpen(false);
-    }catch(e){setProfileError(e instanceof Error?e.message:'Unable to save profile.');}
-    finally{setProfileBusy(false);}
-  };
-  const mustOnboard=!!user&&!user.user_metadata?.phaseboard_onboarded;
-  useEffect(()=>{if(user?.user_metadata?.full_name)setFullName(user.user_metadata.full_name)},[user?.id]);
-  const profileForm=(required:boolean)=><div className="authPage"><form className="authCard" onSubmit={saveProfile}>
-    <div className="authBrand">Phaseboard</div><h1>{required?'Finish setting up your account':'My Profile'}</h1>
-    <p>{required?'Set your full name and create a password before opening ATLAS360.':'Update your name or change your password.'}</p>
-    <label>Full name<input required minLength={2} value={fullName} onChange={e=>setFullName(e.target.value)} autoComplete="name" placeholder="First and last name"/></label>
-    <label>{required?'Create password':'New password (optional)'}<input type="password" autoComplete="new-password" minLength={8} required={required} value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label>
-    <label>Confirm password<input type="password" autoComplete="new-password" required={required||!!newPassword} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)}/></label>
-    {profileError&&<p role="alert" className="authError">{profileError}</p>}
-    <button type="submit" disabled={profileBusy}>{profileBusy?'Saving…':required?'Complete setup':'Save changes'}</button>
-    {!required&&<button type="button" className="ghost" onClick={()=>setProfileOpen(false)}>Cancel</button>}
-    {required&&<button type="button" className="ghost" onClick={()=>void signOut()}>Sign out</button>}
-  </form></div>;
-  if (!client) return;
+    if (!client) return;
     const { error: signOutError } = await client.auth.signOut();
     if (signOutError) setError(signOutError.message);
   };
   const retry = async () => {
-    const saveProfile=async(event:FormEvent<HTMLFormElement>)=>{
-    event.preventDefault();if(!client||!user)return;
-    setProfileError('');
-    const name=fullName.trim();
-    if(name.length<2){setProfileError('Enter your full name.');return;}
-    if(newPassword && (newPassword.length<8 || newPassword!==confirmPassword)){setProfileError('Passwords must match and contain at least 8 characters.');return;}
-    if(!user.user_metadata?.phaseboard_onboarded && !newPassword){setProfileError('Create a password to finish setup.');return;}
-    setProfileBusy(true);
-    try{
-      const {data,error:updateError}=await client.auth.updateUser({data:{full_name:name,phaseboard_onboarded:true},...(newPassword?{password:newPassword}:{})});
-      if(updateError)throw updateError;
-      if(data.user)setUser(data.user);
-      const {error:profileErr}=await client.from('profiles').upsert({id:user.id,display_name:name},{onConflict:'id'});
-      if(profileErr)throw profileErr;
-      setNewPassword('');setConfirmPassword('');setProfileOpen(false);
-    }catch(e){setProfileError(e instanceof Error?e.message:'Unable to save profile.');}
-    finally{setProfileBusy(false);}
-  };
-  const mustOnboard=!!user&&!user.user_metadata?.phaseboard_onboarded;
-  useEffect(()=>{if(user?.user_metadata?.full_name)setFullName(user.user_metadata.full_name)},[user?.id]);
-  const profileForm=(required:boolean)=><div className="authPage"><form className="authCard" onSubmit={saveProfile}>
-    <div className="authBrand">Phaseboard</div><h1>{required?'Finish setting up your account':'My Profile'}</h1>
-    <p>{required?'Set your full name and create a password before opening ATLAS360.':'Update your name or change your password.'}</p>
-    <label>Full name<input required minLength={2} value={fullName} onChange={e=>setFullName(e.target.value)} autoComplete="name" placeholder="First and last name"/></label>
-    <label>{required?'Create password':'New password (optional)'}<input type="password" autoComplete="new-password" minLength={8} required={required} value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label>
-    <label>Confirm password<input type="password" autoComplete="new-password" required={required||!!newPassword} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)}/></label>
-    {profileError&&<p role="alert" className="authError">{profileError}</p>}
-    <button type="submit" disabled={profileBusy}>{profileBusy?'Saving…':required?'Complete setup':'Save changes'}</button>
-    {!required&&<button type="button" className="ghost" onClick={()=>setProfileOpen(false)}>Cancel</button>}
-    {required&&<button type="button" className="ghost" onClick={()=>void signOut()}>Sign out</button>}
-  </form></div>;
-  if (!client) return;
+    if (!client) return;
     setGate('checking');
     try {
       const { data, error: authError } = await client.auth.getUser();
@@ -255,11 +131,11 @@ export default function AuthShell({ children }: { children: ReactNode }) {
     if(!user.user_metadata?.phaseboard_onboarded && !newPassword){setProfileError('Create a password to finish setup.');return;}
     setProfileBusy(true);
     try{
+      const {error:profileErr}=await client.from('profiles').upsert({id:user.id,display_name:name},{onConflict:'id'});
+      if(profileErr)throw profileErr;
       const {data,error:updateError}=await client.auth.updateUser({data:{full_name:name,phaseboard_onboarded:true},...(newPassword?{password:newPassword}:{})});
       if(updateError)throw updateError;
       if(data.user)setUser(data.user);
-      const {error:profileErr}=await client.from('profiles').upsert({id:user.id,display_name:name},{onConflict:'id'});
-      if(profileErr)throw profileErr;
       setNewPassword('');setConfirmPassword('');setProfileOpen(false);
     }catch(e){setProfileError(e instanceof Error?e.message:'Unable to save profile.');}
     finally{setProfileBusy(false);}
