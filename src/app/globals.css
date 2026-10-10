@@ -90,3 +90,14 @@
 .authCard .authError{color:#aa2634}
 .authSession{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:8px 20px;background:#edf2fa;color:#25344f;font-size:12px;flex-wrap:wrap}
 .authSession button{background:transparent;border:1px solid #b9c6dd;border-radius:7px;padding:6px 11px;cursor:pointer;color:inherit}
+
+/* V9 shared board and permissions */
+.taskEditable{border:0;padding:0;margin:0;min-width:0;display:block}
+.permissionBox,.discussion{border:1px solid #dce3ec;border-radius:12px;padding:12px;margin:12px 0}
+.permissionBox summary{cursor:pointer;font-weight:700}
+.permissionBox label{display:flex;gap:8px;align-items:center;margin:8px 0;font-size:13px}
+.permissionBox input[type=checkbox]{width:auto;flex:none}
+.comment{border-bottom:1px solid #e8ecf0;padding:9px 0}
+.comment p{margin:5px 0;overflow-wrap:anywhere}
+.comment button{font-size:12px}
+.discussion textarea{width:100%}

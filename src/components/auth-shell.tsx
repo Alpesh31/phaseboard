@@ -1,10 +1,14 @@
 'use client';
 
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
+import { createContext, FormEvent, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { getSupabaseClient } from '@/lib/supabase/client';
 
 type Membership = { project_id: string; role: 'admin' | 'editor' | 'viewer'; projects: { name: string } | { name: string }[] | null };
+
+export type AccessContext = { projectId: string; userId: string; role: 'admin' | 'editor' | 'viewer' };
+export const Access = createContext<AccessContext | null>(null);
+export const useAccess = () => useContext(Access);
 
 export default function AuthShell({ children }: { children: ReactNode }) {
   const client = useMemo(() => {
@@ -70,5 +74,5 @@ export default function AuthShell({ children }: { children: ReactNode }) {
     <small>Accounts and invitations are managed by an Admin. Public sign-up is disabled in this interface.</small>
   </form></div>;
   if (!membership) return <div className="authPage"><div className="authCard"><h1>Access pending</h1><p>Your account is signed in, but it has no Phaseboard project membership. Ask the Admin to grant access.</p>{error && <p role="alert" className="authError">{error}</p>}<button onClick={() => void signOut()}>Sign out</button></div></div>;
-  return <><div className="authSession"><span>{user.email} · <strong>{membership.role}</strong></span><button type="button" onClick={() => void signOut()}>Sign out</button></div>{children}</>;
+  return <><div className="authSession"><span>{user.email} · <strong>{membership.role}</strong></span><button type="button" onClick={() => void signOut()}>Sign out</button></div><Access.Provider value={{projectId:membership.project_id,userId:user.id,role:membership.role}}>{children}</Access.Provider></>;
 }
