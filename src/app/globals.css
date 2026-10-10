@@ -61,3 +61,19 @@
 .uploadButton input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
 .imageError{color:#b73842;font-size:12px}
 @media(max-width:700px){.attachmentGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* V7: consistent tag order and multi-person contributor editor */
+.cardTop{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0}
+.taskTags{display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap}
+.taskTags .status,.taskTags .importance,.taskTags .priority{font-size:9px;line-height:1.15;padding:4px 5px;flex-shrink:0;margin:0}
+.attachmentCount{font-size:10px;white-space:nowrap;flex-shrink:0}
+.contributorsEditor{margin-bottom:17px}
+.contributorsEditor>label{display:block;margin-bottom:7px}
+.contributorInputRow{display:flex;gap:8px}
+.contributorInputRow input{min-width:0;flex:1}
+.contributorInputRow button:disabled{opacity:.5;cursor:not-allowed}
+.contributorChips{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.contributorChip{display:inline-flex;align-items:center;gap:7px;border-radius:999px;background:#e9effa;color:#243e69;padding:4px 5px 4px 11px;font-size:12px;font-weight:600}
+.contributorChip button{min-height:26px;min-width:26px;padding:0;border-radius:50%;background:#d6e2f4;color:#243e69;font-size:18px}
+.contributorHelp{font-size:11px;color:#778298;margin:8px 0 0}
+@media(max-width:700px){.taskTags{gap:4px}.taskTags .status,.taskTags .importance,.taskTags .priority{font-size:9px;padding:4px 5px}}

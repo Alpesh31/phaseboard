@@ -63,8 +63,7 @@ export default function Home(){
    {board.phases.map((phase,index)=>{const stat=phaseStats[phase.id];const isIdeas=phase.id==='ideas';return <div data-mobile-active={activePhase===index} className={`column ${isIdeas?'ideasColumn':''}`} key={phase.id} onDragOver={e=>e.preventDefault()} onDrop={e=>{const id=e.dataTransfer.getData('taskId');if(id)moveTask(id,phase.id)}}>
     <div className="columnHead"><div><span className="phaseNum">{isIdeas?'INBOX':`PHASE ${index}`}</span><h2>{phase.name}</h2><p>{stat.done}/{stat.total} completed</p></div><span className="count">{stat.total}</span></div>
     <div className="cards">{board.tasks.filter(t=>t.phaseId===phase.id).map(task=><article draggable onDragStart={e=>e.dataTransfer.setData('taskId',task.id)} onClick={()=>setSelected(task)} className="card" key={task.id}>
-      <div className="cardTop"><span className={`priority ${task.priority.toLowerCase()}`}>{task.priority}</span><span className={`status ${task.status.replaceAll(' ','').toLowerCase()}`}>{task.status}</span></div>
-      <div className="importanceRow"><span className={`importance ${task.importance.replaceAll(' ','').toLowerCase()}`}>{task.importance}</span>{task.attachments.length>0&&<span className="attachmentCount">📎 {task.attachments.length}</span>}</div><h3>{task.title}</h3>{task.description&&<p>{task.description}</p>}
+      <div className="cardTop"><div className="taskTags"><span className={`status ${task.status.replaceAll(' ','').toLowerCase()}`}>{task.status}</span><span className={`importance ${task.importance.replaceAll(' ','').toLowerCase()}`}>{task.importance}</span><span className={`priority ${task.priority.toLowerCase()}`}>{task.priority}</span></div>{task.attachments.length>0&&<span className="attachmentCount">📎 {task.attachments.length}</span>}</div><h3>{task.title}</h3>{task.description&&<p>{task.description}</p>}
       <div className="people"><b>Owner:</b> {task.owner||'Unassigned'}{task.contributors.length>0&&<span> +{task.contributors.length} contributor{task.contributors.length>1?'s':''}</span>}</div>
       <div className="meta"><span>{task.dueDate?`Due ${task.dueDate}`:'No due date'}</span><span className="moveHint">Tap to edit →</span></div>
     </article>)}</div>
@@ -78,7 +77,7 @@ export default function Home(){
    <div className="grid2"><label>Status<select value={selected.status} onChange={e=>updateTask({...selected,status:e.target.value as Status})}>{statuses.map(x=><option key={x}>{x}</option>)}</select></label><label>Priority<select value={selected.priority} onChange={e=>updateTask({...selected,priority:e.target.value as Priority})}>{priorities.map(x=><option key={x}>{x}</option>)}</select></label></div>
    <label>Importance<select value={selected.importance} onChange={e=>updateTask({...selected,importance:e.target.value as Importance})}>{importanceOptions.map(x=><option key={x}>{x}</option>)}</select></label>
    <div className="grid2"><label>Task owner<input value={selected.owner} placeholder="One owner" onChange={e=>updateTask({...selected,owner:e.target.value})}/></label><label>Due date<input type="date" value={selected.dueDate} onChange={e=>updateTask({...selected,dueDate:e.target.value})}/></label></div>
-   <label>Contributors <span className="labelHint">(separate names with commas)</span><input value={selected.contributors.join(', ')} placeholder="Alex, Sam, Priya" onChange={e=>updateTask({...selected,contributors:e.target.value.split(',').map(x=>x.trim()).filter(Boolean)})}/></label>
+   <ContributorsEditor key={selected.id} contributors={selected.contributors} onChange={contributors=>updateTask({...selected,contributors})}/>
    <label>Move to<select value={selected.phaseId} onChange={e=>updateTask({...selected,phaseId:e.target.value})}>{board.phases.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select></label>
    <div className="attachmentSection"><div className="attachmentHeading"><strong>Image attachments</strong><small>Stored on this device only</small></div>
     <div className="attachmentGrid">{selected.attachments.map(a=><AttachmentTile key={a.id} id={a.id} name={a.name} onRemove={()=>void removeAttachment(a.id)}/>)}</div>
@@ -97,4 +96,22 @@ function AttachmentTile({id,name,onRemove}:{id:string;name:string;onRemove:()=>v
   return ()=>{active=false;if(objectUrl)URL.revokeObjectURL(objectUrl);};
  },[id]);
  return <div className="attachmentTile">{url?<a href={url} target="_blank" rel="noreferrer" aria-label={`View ${name}`}><img src={url} alt={name}/></a>:<div className="imagePlaceholder">Image unavailable</div>}<span title={name}>{name}</span><button type="button" aria-label={`Remove ${name}`} onClick={onRemove}>×</button></div>;
+}
+
+function ContributorsEditor({contributors,onChange}:{contributors:string[];onChange:(names:string[])=>void}){
+ const [draft,setDraft]=useState('');
+ const add=()=>{
+  const names=draft.split(',').map(n=>n.trim()).filter(Boolean);
+  if(!names.length)return;
+  const seen=new Set(contributors.map(n=>n.toLocaleLowerCase()));
+  const next=[...contributors];
+  for(const name of names){if(!seen.has(name.toLocaleLowerCase())){next.push(name);seen.add(name.toLocaleLowerCase());}}
+  onChange(next);setDraft('');
+ };
+ return <div className="contributorsEditor">
+  <label htmlFor="contributor-input">Contributors <span className="labelHint">(add multiple people)</span></label>
+  <div className="contributorInputRow"><input id="contributor-input" value={draft} placeholder="Enter a name" onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();add();}}}/><button type="button" onClick={add} disabled={!draft.trim()}>Add</button></div>
+  <div className="contributorChips" aria-label="Contributors">{contributors.map((name,index)=><span className="contributorChip" key={`${name}-${index}`}>{name}<button type="button" aria-label={`Remove ${name}`} onClick={()=>onChange(contributors.filter((_,i)=>i!==index))}>×</button></span>)}</div>
+  <p className="contributorHelp">Add one name at a time, or separate several names with commas. Press Enter or Add.</p>
+ </div>;
 }
