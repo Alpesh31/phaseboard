@@ -1,5 +1,6 @@
-import UserManagement from '@/components/user-management';
 'use client';
+
+import UserManagement from '@/components/user-management';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { BoardData, Priority, Status, Importance, Task } from '@/lib/types';
 import { getSupabaseClient } from '@/lib/supabase/client';
