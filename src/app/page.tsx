@@ -1,6 +1,6 @@
 'use client';
-
 import UserManagement from '@/components/user-management';
+import { useProfileMenu } from '@/components/profile-menu';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { BoardData, Priority, Status, Importance, Task } from '@/lib/types';
 import { getSupabaseClient } from '@/lib/supabase/client';
@@ -10,8 +10,8 @@ const statuses:Status[]=['Not Started','In Progress','Blocked','Completed'];
 const priorities:Priority[]=['Low','Medium','High'];
 const importanceOptions:Importance[]=['Must','Maybe','Mostly Not'];
 const uid=()=>crypto.randomUUID();
-type DbTask = {id:string;title:string;description:string;priority:Priority;status:Status;importance:Importance;owner_name:string;due_date:string|null;phase_id:string;visible_to_everyone:boolean;task_contributors:{name:string}[];task_attachments:{id:string;filename:string;content_type:string;bytes:number;storage_path:string}[]};
-const convertTask=(t:DbTask):Task=>({id:t.id,title:t.title,description:t.description,priority:t.priority,status:t.status,importance:t.importance,owner:t.owner_name,contributors:(t.task_contributors||[]).map(c=>c.name),dueDate:t.due_date||'',phaseId:t.phase_id,attachments:(t.task_attachments||[]).map(a=>({id:a.id,name:a.filename,type:a.content_type,size:a.bytes}))});
+type DbTask = {id:string;title:string;description:string;priority:Priority;status:Status;importance:Importance;owner_name:string;due_date:string|null;phase_id:string;visible_to_everyone:boolean;task_contributors:{name:string;user_id:string|null}[];task_attachments:{id:string;filename:string;content_type:string;bytes:number;storage_path:string}[]};
+const convertTask=(t:DbTask):Task=>({id:t.id,title:t.title,description:t.description,priority:t.priority,status:t.status,importance:t.importance,owner:t.owner_name,contributors:(t.task_contributors||[]).map(c=>c.user_id||c.name),dueDate:t.due_date||'',phaseId:t.phase_id,attachments:(t.task_attachments||[]).map(a=>({id:a.id,name:a.filename,type:a.content_type,size:a.bytes}))});
 
 export default function Home(){
  const boardRef=useRef<HTMLElement|null>(null); const touchStart=useRef<{x:number,y:number}|null>(null); const [activePhase,setActivePhase]=useState(0);
@@ -21,19 +21,20 @@ export default function Home(){
  const [selected,setSelected]=useState<Task|null>(null); const [uploading,setUploading]=useState(false); const [imageError,setImageError]=useState(''); const [newPhase,setNewPhase]=useState<string|null>(null); const [quickOpen,setQuickOpen]=useState(false);
  const [visibility,setVisibility]=useState<Record<string,boolean>>({});
  const [allowed,setAllowed]=useState<Record<string,string[]>>({});
- const [members,setMembers]=useState<{user_id:string;role:string}[]>([]);
+ const [members,setMembers]=useState<{user_id:string;role:string;display_name?:string;email?:string}[]>([]);
  const [comments,setComments]=useState<{id:string;author_id:string;body:string;created_at:string}[]>([]);
  const [commentDraft,setCommentDraft]=useState('');
  const [adminPanel,setAdminPanel]=useState(false); const [usersOpen,setUsersOpen]=useState(false);
- const [phaseAccessOpen,setPhaseAccessOpen]=useState<Record<string,boolean>>({});
+
  const [attachmentsPaths,setAttachmentsPaths]=useState<Record<string,string>>({});
+ const { registerActions }=useProfileMenu();
  const editable=access?.role==='admin'||access?.role==='editor';
  const admin=access?.role==='admin';
  const refresh=async()=>{
   if(!access)return;
   const [ph,ts,pr,mem]=await Promise.all([
    client.from('phases').select('id,name,visible_to_everyone').eq('project_id',access.projectId).order('position'),
-   client.from('tasks').select('id,title,description,priority,status,importance,owner_name,due_date,phase_id,visible_to_everyone,task_contributors(name),task_attachments(id,filename,content_type,bytes,storage_path)').eq('project_id',access.projectId).order('created_at'),
+   client.from('tasks').select('id,title,description,priority,status,importance,owner_name,due_date,phase_id,visible_to_everyone,task_contributors(name,user_id),task_attachments(id,filename,content_type,bytes,storage_path)').eq('project_id',access.projectId).order('created_at'),
    client.from('projects').select('name').eq('id',access.projectId).single(),
    client.from('project_members').select('user_id,role').eq('project_id',access.projectId)
   ]);
@@ -45,6 +46,8 @@ export default function Home(){
   setAttachmentsPaths(Object.fromEntries((ts.data||[]).flatMap(t=>(t.task_attachments||[]).map(a=>[a.id,a.storage_path]))));
   setReady(true);
  };
+ useEffect(()=>{if(!access)return;let live=true;const load=async()=>{try{const {data:{session}}=await client.auth.getSession();if(!session)return;const res=await fetch(`/api/members?projectId=${encodeURIComponent(access.projectId)}`,{headers:{Authorization:`Bearer ${session.access_token}`},cache:"no-store"});if(!res.ok)throw new Error("Could not load member names");const result=await res.json();if(live)setMembers(result.members||[]);}catch(e){if(live)fail(e)}};void load();return()=>{live=false}},[access?.projectId,usersOpen]);
+ useEffect(()=>registerActions(admin?{manageUsers:()=>setUsersOpen(true),managePhases:()=>setAdminPanel(true)}:{}),[admin,registerActions]);
  useEffect(()=>{void refresh();},[access?.projectId]);
  useEffect(()=>{if(!access)return;const channel=client.channel('phaseboard-'+access.projectId)
   .on('postgres_changes',{event:'*',schema:'public',table:'tasks',filter:`project_id=eq.${access.projectId}`},()=>{void refresh()})
@@ -62,7 +65,7 @@ export default function Home(){
   if(JSON.stringify(current?.contributors)!==JSON.stringify(task.contributors)){
    const {error:delErr}=await client.from('task_contributors').delete().eq('task_id',task.id);
    if(delErr){fail(delErr);return;}
-   if(task.contributors.length){const {error:insErr}=await client.from('task_contributors').insert(task.contributors.map(name=>({task_id:task.id,name})));if(insErr)fail(insErr);}
+   if(task.contributors.length){const {error:insErr}=await client.from('task_contributors').insert(task.contributors.map(value=>{const member=members.find(m=>m.user_id===value);return {task_id:task.id,name:member?`${member.display_name||member.email||value} · ${member.user_id.slice(0,8)}`:value,user_id:member?.user_id||null}}));if(insErr)fail(insErr);}
   }
   await refresh();
  };
@@ -81,7 +84,7 @@ export default function Home(){
    const {error:upErr}=await client.storage.from('task-images').upload(path,file,{contentType:file.type});if(upErr)throw upErr;
    const {error:metaErr}=await client.from('task_attachments').insert({task_id:selected.id,storage_path:path,filename:file.name,content_type:file.type,bytes:file.size,created_by:access.userId});
    if(metaErr){await client.storage.from('task-images').remove([path]);throw metaErr;}
-  }await refresh();const {data}=await client.from('tasks').select('id,title,description,priority,status,importance,owner_name,due_date,phase_id,task_contributors(name),task_attachments(id,filename,content_type,bytes,storage_path)').eq('id',selected.id).single();if(data)setSelected(convertTask(data as unknown as DbTask));
+  }await refresh();const {data}=await client.from('tasks').select('id,title,description,priority,status,importance,owner_name,due_date,phase_id,task_contributors(name,user_id),task_attachments(id,filename,content_type,bytes,storage_path)').eq('id',selected.id).single();if(data)setSelected(convertTask(data as unknown as DbTask));
   }catch(e){setImageError(e instanceof Error?e.message:'Image upload failed.')}finally{setUploading(false)}
  };
  const removeAttachment=async(id:string)=>{if(!selected||!editable)return;const path=attachmentsPaths[id];const {error:e}=await client.from('task_attachments').delete().eq('id',id);if(e){fail(e);return;}if(path)await client.storage.from('task-images').remove([path]);setSelected({...selected,attachments:selected.attachments.filter(a=>a.id!==id)});await refresh();};
@@ -96,14 +99,14 @@ export default function Home(){
  return <main>
   {error&&<p role="alert" className="imageError">{error} <button onClick={()=>void refresh()}>Retry</button></p>}
   <header className="topbar"><div><div className="brand">Phaseboard</div><div className="tagline">Capture ideas. Turn them into action.</div></div>{editable&&<button className="quickButton" onClick={()=>setQuickOpen(true)}>＋ Quick Add</button>}</header>
-  {admin&&<section className="adminBanner"><div><strong>Admin controls</strong><p>Manage phase visibility and task access. Invite users and manage access from here.</p></div><button type="button" onClick={()=>setAdminPanel(v=>!v)} aria-expanded={adminPanel} aria-controls="admin-visibility-panel">{adminPanel?"Hide phase permissions":"Manage phase permissions"}</button><button type="button" onClick={()=>setUsersOpen(true)}>Manage Users</button></section>}
-  {admin&&adminPanel&&<section id="admin-visibility-panel" className="adminPanel" aria-label="Phase visibility settings"><h2>Phase permissions</h2><p>Everyone means all project members. Restricted phases are visible only to selected users and Admins.</p>{board.phases.map(phase=><div className="adminPhaseRow" key={phase.id}><strong>{phase.name}</strong><label><input type="checkbox" checked={visibility[phase.id]??true} onChange={e=>void changeVisibility("phase",phase.id,e.target.checked)}/> Visible to everyone</label>{visibility[phase.id]===false&&<div className="adminMemberList"><button type="button" className="ghost" onClick={()=>void loadAccess("phase",phase.id)}>Refresh permitted users</button>{members.filter(m=>m.role!=="admin").length===0?<p>No Editors or Viewers have been added yet.</p>:members.filter(m=>m.role!=="admin").map(m=><label key={m.user_id}><input type="checkbox" checked={(allowed[phase.id]||[]).includes(m.user_id)} onChange={e=>void changeAccess("phase",phase.id,m.user_id,e.target.checked)}/>{m.user_id.slice(0,8)} ({m.role})</label>)}</div>}</div>)}</section>}
-  <section className="hero"><div><span className="eyebrow">PROJECT</span><h1 className="projectTitle">{board.projectName}</h1><p className="heroHint">Add thoughts to Ideas / To-Do, then move them into a phase when you're ready.</p></div><div className="progressBox"><div><b>{progress}%</b> complete</div><div className="progress"><span style={{width:`${progress}%`}}/></div><small>{completed} of {board.tasks.length} items completed</small></div></section>
+
+  {admin&&adminPanel&&<div className="overlay" onMouseDown={()=>setAdminPanel(false)}><section id="admin-visibility-panel" role="dialog" aria-modal="true" className="adminPanel phaseModal" onMouseDown={e=>e.stopPropagation()} aria-label="Phase visibility settings"><div className="modalHead"><h2>Phase permissions</h2><button type="button" onClick={()=>setAdminPanel(false)} aria-label="Close phase permissions">×</button></div><p>Everyone means all project members. Restricted phases are visible only to selected users and Admins.</p>{board.phases.map(phase=><div className="adminPhaseRow" key={phase.id}><strong>{phase.name}</strong><label><input type="checkbox" checked={visibility[phase.id]??true} onChange={e=>void changeVisibility("phase",phase.id,e.target.checked)}/> Visible to everyone</label>{visibility[phase.id]===false&&<div className="adminMemberList"><button type="button" className="ghost" onClick={()=>void loadAccess("phase",phase.id)}>Refresh permitted users</button>{members.filter(m=>m.role!=="admin").length===0?<p>No Editors or Viewers have been added yet.</p>:members.filter(m=>m.role!=="admin").map(m=><label key={m.user_id}><input type="checkbox" checked={(allowed[phase.id]||[]).includes(m.user_id)} onChange={e=>void changeAccess("phase",phase.id,m.user_id,e.target.checked)}/>{m.display_name||m.email||m.user_id.slice(0,8)} ({m.role})</label>)}</div>}</div>)}</section></div>}
+  <section className="hero"><div><span className="eyebrow">PROJECT</span><h1 className="projectTitle">ATLAS360</h1><p className="heroHint">Add thoughts to Ideas / To-Do, then move them into a phase when you're ready.</p></div><div className="progressBox"><div><b>{progress}%</b> complete</div><div className="progress"><span style={{width:`${progress}%`}}/></div><small>{completed} of {board.tasks.length} items completed</small></div></section>
   <nav className="mobilePhases" aria-label="Choose phase">{board.phases.map((phase,index)=><button key={phase.id} type="button" className={activePhase===index?'active':''} aria-current={activePhase===index?'step':undefined} onClick={()=>setActivePhase(index)}>{phase.id==='ideas'?'Ideas':phase.name}</button>)}</nav>
   <section className="board" ref={boardRef} onTouchStart={e=>{if(window.innerWidth>700)return;const t=e.touches[0];touchStart.current={x:t.clientX,y:t.clientY};}} onTouchEnd={e=>{if(window.innerWidth>700||!touchStart.current)return;const t=e.changedTouches[0];const dx=t.clientX-touchStart.current.x;const dy=t.clientY-touchStart.current.y;touchStart.current=null;if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.4){setActivePhase(i=>Math.max(0,Math.min(board.phases.length-1,i+(dx<0?1:-1))));}}}>
    {board.phases.map((phase,index)=>{const stat=phaseStats[phase.id];const isIdeas=phase.id==='ideas';return <div data-mobile-active={activePhase===index} className={`column ${isIdeas?'ideasColumn':''}`} key={phase.id} onDragOver={e=>{if(editable)e.preventDefault()}} onDrop={e=>{const id=e.dataTransfer.getData('taskId');if(id&&editable)void moveTask(id,phase.id)}}>
     <div className="columnHead"><div><span className="phaseNum">{isIdeas?'INBOX':`PHASE ${index}`}</span><h2>{phase.name}</h2><p>{stat.done}/{stat.total} completed</p></div><span className="count">{stat.total}</span></div>
-    {admin&&<details className="permissionBox" open={phaseAccessOpen[phase.id]??false} onToggle={e=>setPhaseAccessOpen(old=>({...old,[phase.id]:(e.currentTarget as HTMLDetailsElement).open}))}><summary>🔒 Phase visibility</summary><label><input type="checkbox" checked={visibility[phase.id]??true} onChange={e=>void changeVisibility('phase',phase.id,e.target.checked)}/> Visible to everyone</label>{!visibility[phase.id]&&<div><button onClick={()=>void loadAccess('phase',phase.id)}>Manage selected users</button>{(allowed[phase.id]||[]).length>=0&&members.filter(m=>m.role!=='admin').map(m=><label key={m.user_id}><input type="checkbox" checked={(allowed[phase.id]||[]).includes(m.user_id)} onChange={e=>void changeAccess('phase',phase.id,m.user_id,e.target.checked)}/>{m.user_id.slice(0,8)} ({m.role})</label>)}</div>}</details>}
+
     <div className="cards">{board.tasks.filter(t=>t.phaseId===phase.id).map(task=><article draggable={editable} onDragStart={e=>e.dataTransfer.setData('taskId',task.id)} onClick={()=>void openTask(task)} className="card" key={task.id}>
       <div className="cardTop"><div className="taskTags"><span className={`status ${task.status.replaceAll(' ','').toLowerCase()}`}>{task.status}</span><span className={`importance ${task.importance.replaceAll(' ','').toLowerCase()}`}>{task.importance}</span><span className={`priority ${task.priority.toLowerCase()}`}>{task.priority}</span></div>{task.attachments.length>0&&<span className="attachmentCount">📎 {task.attachments.length}</span>}</div><h3>{task.title}</h3>{task.description&&<p>{task.description}</p>}
       <div className="people"><b>Owner:</b> {task.owner||'Unassigned'}{task.contributors.length>0&&<span> +{task.contributors.length} contributor{task.contributors.length>1?'s':''}</span>}</div>
@@ -120,7 +123,7 @@ export default function Home(){
    <div className="grid2"><label>Status<select value={selected.status} onChange={e=>updateTask({...selected,status:e.target.value as Status})}>{statuses.map(x=><option key={x}>{x}</option>)}</select></label><label>Priority<select value={selected.priority} onChange={e=>updateTask({...selected,priority:e.target.value as Priority})}>{priorities.map(x=><option key={x}>{x}</option>)}</select></label></div>
    <label>Importance<select value={selected.importance} onChange={e=>updateTask({...selected,importance:e.target.value as Importance})}>{importanceOptions.map(x=><option key={x}>{x}</option>)}</select></label>
    <div className="grid2"><label>Task owner<input value={selected.owner} placeholder="One owner" onChange={e=>setSelected({...selected,owner:e.target.value})} onBlur={()=>void updateTask(selected)}/></label><label>Due date<input type="date" value={selected.dueDate} onChange={e=>updateTask({...selected,dueDate:e.target.value})}/></label></div>
-   <ContributorsEditor key={selected.id} contributors={selected.contributors} onChange={contributors=>updateTask({...selected,contributors})}/>
+   <ContributorsEditor key={selected.id} contributors={selected.contributors} members={members} onChange={contributors=>updateTask({...selected,contributors})}/>
    <label>Move to<select value={selected.phaseId} onChange={e=>updateTask({...selected,phaseId:e.target.value})}>{board.phases.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select></label>
    </fieldset>}
    <div className="attachmentSection"><div className="attachmentHeading"><strong>Image attachments</strong><small>Shared securely via Supabase</small></div>
@@ -128,8 +131,8 @@ export default function Home(){
     {editable&&<label className="uploadButton">＋ Add images<input aria-label="Add images" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple disabled={uploading} onChange={e=>{void uploadImages(e.target.files);e.target.value='';}}/></label>}
     {uploading&&<p role="status">Saving images…</p>}{imageError&&<p className="imageError" role="alert">{imageError}</p>}
    </div>
-   {admin&&<section className="permissionBox taskVisibility"><h3>🔒 Task visibility · Admin only</h3><label><input type="checkbox" checked={visibility[selected.id]??true} onChange={e=>void changeVisibility('task',selected.id,e.target.checked)}/> Visible to everyone with phase access</label>{!visibility[selected.id]&&<div><button onClick={()=>void loadAccess('task',selected.id)}>Manage selected users</button>{members.filter(m=>m.role!=='admin').map(m=><label key={m.user_id}><input type="checkbox" checked={(allowed[selected.id]||[]).includes(m.user_id)} onChange={e=>void changeAccess('task',selected.id,m.user_id,e.target.checked)}/>{m.user_id.slice(0,8)} ({m.role})</label>)}</div>}</section>}
-   <section className="discussion"><h3>Comments</h3>{comments.map(c=><div key={c.id} className="comment"><small>{c.author_id===access?.userId?'You':c.author_id.slice(0,8)} · {new Date(c.created_at).toLocaleString()}</small><p>{c.body}</p>{(admin||c.author_id===access?.userId)&&<button type="button" onClick={()=>void deleteComment(c.id)}>Delete comment</button>}</div>)}<label>Add comment<textarea rows={2} value={commentDraft} onChange={e=>setCommentDraft(e.target.value)}/></label><button type="button" disabled={!commentDraft.trim()} onClick={()=>void postComment()}>Post comment</button></section>
+   {admin&&<section className="permissionBox taskVisibility"><h3>🔒 Task visibility · Admin only</h3><label><input type="checkbox" checked={visibility[selected.id]??true} onChange={e=>void changeVisibility('task',selected.id,e.target.checked)}/> Visible to everyone with phase access</label>{!visibility[selected.id]&&<div><button onClick={()=>void loadAccess('task',selected.id)}>Manage selected users</button>{members.filter(m=>m.role!=='admin').map(m=><label key={m.user_id}><input type="checkbox" checked={(allowed[selected.id]||[]).includes(m.user_id)} onChange={e=>void changeAccess('task',selected.id,m.user_id,e.target.checked)}/>{m.display_name||m.email||m.user_id.slice(0,8)} ({m.role})</label>)}</div>}</section>}
+   <section className="discussion"><h3>Comments</h3>{comments.map(c=><div key={c.id} className="comment"><small>{c.author_id===access?.userId?'You':(members.find(m=>m.user_id===c.author_id)?.display_name||members.find(m=>m.user_id===c.author_id)?.email||'Member')} · {new Date(c.created_at).toLocaleString()}</small><p>{c.body}</p>{(admin||c.author_id===access?.userId)&&<button type="button" onClick={()=>void deleteComment(c.id)}>Delete comment</button>}</div>)}<label>Add comment<textarea rows={2} value={commentDraft} onChange={e=>setCommentDraft(e.target.value)}/></label><button type="button" disabled={!commentDraft.trim()} onClick={()=>void postComment()}>Post comment</button></section>
    <div className="modalActions">{editable&&<button className="danger" onClick={()=>void removeTask(selected.id)}>Delete</button>}<button onClick={()=>setSelected(null)}>Done</button></div>
   </section></div>}
  </main>
@@ -141,20 +144,16 @@ function AttachmentTile({path,name,canRemove,onRemove}:{path?:string;name:string
  return <div className="attachmentTile">{url?<a href={url} target="_blank" rel="noreferrer" aria-label={`View ${name}`}><img src={url} alt={name}/></a>:<div className="imagePlaceholder">Image unavailable</div>}<span title={name}>{name}</span>{canRemove&&<button type="button" aria-label={`Remove ${name}`} onClick={onRemove}>×</button>}</div>;
 }
 
-function ContributorsEditor({contributors,onChange}:{contributors:string[];onChange:(names:string[])=>void}){
- const [draft,setDraft]=useState('');
- const add=()=>{
-  const names=draft.split(',').map(n=>n.trim()).filter(Boolean);
-  if(!names.length)return;
-  const seen=new Set(contributors.map(n=>n.toLocaleLowerCase()));
-  const next=[...contributors];
-  for(const name of names){if(!seen.has(name.toLocaleLowerCase())){next.push(name);seen.add(name.toLocaleLowerCase());}}
-  onChange(next);setDraft('');
- };
+function ContributorsEditor({contributors,members,onChange}:{contributors:string[];members:{user_id:string;role:string;display_name?:string;email?:string}[];onChange:(ids:string[])=>void}){
+ const [query,setQuery]=useState('');
+ const [open,setOpen]=useState(false);
+ const choices=members.filter(m=>!contributors.includes(m.user_id) && (m.display_name||m.email||m.user_id).toLowerCase().includes(query.toLowerCase()));
+ const label=(id:string)=>{const m=members.find(x=>x.user_id===id);return m?.display_name||m?.email||id;};
  return <div className="contributorsEditor">
-  <label htmlFor="contributor-input">Contributors <span className="labelHint">(add multiple people)</span></label>
-  <div className="contributorInputRow"><input id="contributor-input" value={draft} placeholder="Enter a name" onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();add();}}}/><button type="button" onClick={add} disabled={!draft.trim()}>Add</button></div>
-  <div className="contributorChips" aria-label="Contributors">{contributors.map((name,index)=><span className="contributorChip" key={`${name}-${index}`}>{name}<button type="button" aria-label={`Remove ${name}`} onClick={()=>onChange(contributors.filter((_,i)=>i!==index))}>×</button></span>)}</div>
-  <p className="contributorHelp">Add one name at a time, or separate several names with commas. Press Enter or Add.</p>
+  <label htmlFor="contributor-input">Contributors <span className="labelHint">(project members only)</span></label>
+  <div className="contributorChips" aria-label="Selected contributors">{contributors.map((id,index)=><span className="contributorChip" key={`${id}-${index}`}>{label(id)}<button type="button" aria-label={`Remove ${label(id)}`} onClick={()=>onChange(contributors.filter((_,i)=>i!==index))}>×</button></span>)}</div>
+  <div className="contributorPicker"><input id="contributor-input" autoComplete="off" value={query} placeholder="Search project members…" onChange={e=>{setQuery(e.target.value);setOpen(true)}} onFocus={()=>setOpen(true)} aria-expanded={open} aria-controls="contributor-options"/>
+  {open&&<div id="contributor-options" className="contributorOptions" role="listbox">{choices.map(m=><button type="button" role="option" aria-selected={false} key={m.user_id} onClick={()=>{onChange([...contributors,m.user_id]);setQuery('');setOpen(false)}}>{m.display_name||m.email||m.user_id}<small>{m.email&&m.display_name?m.email:m.role}</small></button>)}{choices.length===0&&<p>No matching members</p>}</div>}</div>
+  <p className="contributorHelp">Choose existing project members. Previously entered free-text contributors remain visible until removed.</p>
  </div>;
 }
