@@ -1,20 +1,25 @@
-# Phaseboard V5 — mobile single-phase view
+# Phaseboard V6
 
-Next.js PWA with a five-column desktop board and one visible phase on mobile.
+Single-project idea inbox and task tracker. Columns: Ideas / To-Do, Phase 1, Phase 2, Extras.
 
-## Local run
+## Run
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Mobile
+## Changes in V6
 
-On screens up to 700px, only the selected phase renders visibly. Tap a phase tab or swipe horizontally across the board to switch phases. Vertical scrolling shows tasks within that phase. Desktop layout remains multi-column.
+- Phase 4 is removed. Its tasks are **permanently excluded** from the board during migration.
+- Phase 3 is renamed Extras, retaining its tasks.
+- Importance is a separate Must / Maybe / Mostly Not field.
+- Attach JPG/PNG/WebP/GIF images (8 MB maximum per file). Image blobs are stored in IndexedDB, metadata in localStorage.
+- Mobile remains single-phase navigation; desktop retains horizontal columns.
+- V5/V2 localStorage data is migrated from `phaseboard-v2`, with fallback to `phaseboard-v1`.
 
-## Deployment
+**Important:** Browser storage is device-specific. Images do not sync to other devices or friends. Clearing site data may delete tasks and images. Deleting Phase 4 tasks cannot be undone. Export/back up your existing data before deploying if it matters.
 
-Copy the *contents* of this folder into your existing GitHub repository, commit and push. Vercel will deploy automatically if connected.
+## Deploy
 
-Data remains in localStorage; there is no shared database yet. Back up important tasks before clearing browser data.
+Copy project files into your existing GitHub repo and push. Vercel will build automatically.

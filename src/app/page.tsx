@@ -1,13 +1,15 @@
 'use client';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { seed } from '@/lib/seed';
-import { BoardData, Priority, Status, Task } from '@/lib/types';
+import { BoardData, Priority, Status, Importance, Task } from '@/lib/types';
+import { saveImage, loadImage, deleteImage } from '@/lib/image-store';
 
 const STORAGE_KEY='phaseboard-v2';
 const OLD_STORAGE_KEY='phaseboard-v1';
 const statuses:Status[]=['Not Started','In Progress','Blocked','Completed'];
 const priorities:Priority[]=['Low','Medium','High'];
-const uid=()=>Math.random().toString(36).slice(2,10);
+const importanceOptions:Importance[]=['Must','Maybe','Mostly Not'];
+const uid=()=>typeof crypto!=='undefined'&&'randomUUID' in crypto?crypto.randomUUID():Math.random().toString(36).slice(2,10);
 
 function migrate(raw:any):BoardData{
  if(!raw?.tasks) return seed;
@@ -15,24 +17,42 @@ function migrate(raw:any):BoardData{
  return {
   projectName:raw.projectName||seed.projectName,
   phases:seed.phases,
-  tasks:raw.tasks.map((t:any)=>({id:t.id||uid(),title:t.title||'Untitled',description:t.description||'',priority:t.priority||'Medium',status:t.status||'Not Started',owner:t.owner||t.assignee||'Me',contributors:Array.isArray(t.contributors)?t.contributors:[],dueDate:t.dueDate||'',phaseId:oldPhaseMap[t.phaseId]||t.phaseId||'ideas'}))
+  tasks:raw.tasks.filter((t:any)=>!['phase-4','launch'].includes(t.phaseId)).map((t:any)=>({id:t.id||uid(),title:t.title||'Untitled',description:t.description||'',priority:t.priority||'Medium',importance:importanceOptions.includes(t.importance)?t.importance:'Maybe',attachments:Array.isArray(t.attachments)?t.attachments:[],status:t.status||'Not Started',owner:t.owner||t.assignee||'Me',contributors:Array.isArray(t.contributors)?t.contributors:[],dueDate:t.dueDate||'',phaseId:oldPhaseMap[t.phaseId]||t.phaseId||'ideas'}))
  };
 }
 
 export default function Home(){
  const boardRef=useRef<HTMLElement|null>(null); const touchStart=useRef<{x:number,y:number}|null>(null); const [activePhase,setActivePhase]=useState(0);
  const [board,setBoard]=useState<BoardData>(seed); const [ready,setReady]=useState(false);
- const [selected,setSelected]=useState<Task|null>(null); const [newPhase,setNewPhase]=useState<string|null>(null); const [quickOpen,setQuickOpen]=useState(false);
+ const [selected,setSelected]=useState<Task|null>(null); const [uploading,setUploading]=useState(false); const [imageError,setImageError]=useState(''); const [newPhase,setNewPhase]=useState<string|null>(null); const [quickOpen,setQuickOpen]=useState(false);
  useEffect(()=>{try{const saved=localStorage.getItem(STORAGE_KEY)||localStorage.getItem(OLD_STORAGE_KEY);if(saved)setBoard(migrate(JSON.parse(saved)))}catch{}setReady(true)},[]);
  useEffect(()=>{if(ready)localStorage.setItem(STORAGE_KEY,JSON.stringify(board))},[board,ready]);
  const completed=board.tasks.filter(t=>t.status==='Completed').length;
  const progress=board.tasks.length?Math.round(completed/board.tasks.length*100):0;
  const updateTask=(task:Task)=>{setBoard(b=>({...b,tasks:b.tasks.map(t=>t.id===task.id?task:t)}));setSelected(task)};
- const removeTask=(id:string)=>{setBoard(b=>({...b,tasks:b.tasks.filter(t=>t.id!==id)}));setSelected(null)};
+ const removeTask=(id:string)=>{const task=board.tasks.find(t=>t.id===id);task?.attachments.forEach(a=>{void deleteImage(a.id).catch(console.error)});setBoard(b=>({...b,tasks:b.tasks.filter(t=>t.id!==id)}));setSelected(null)};
  const moveTask=(taskId:string,phaseId:string)=>setBoard(b=>({...b,tasks:b.tasks.map(t=>t.id===taskId?{...t,phaseId}:t)}));
- const createTask=(title:string,phaseId='ideas')=>setBoard(b=>({...b,tasks:[...b.tasks,{id:uid(),title,description:'',priority:'Medium',status:'Not Started',owner:'Me',contributors:[],dueDate:'',phaseId}]}));
+ const createTask=(title:string,phaseId='ideas')=>setBoard(b=>({...b,tasks:[...b.tasks,{id:uid(),title,description:'',priority:'Medium',importance:'Maybe',attachments:[],status:'Not Started',owner:'Me',contributors:[],dueDate:'',phaseId}]}));
  const addTask=(e:FormEvent<HTMLFormElement>,phaseId:string)=>{e.preventDefault();const form=e.currentTarget;const title=String(new FormData(form).get('title')||'').trim();if(!title)return;createTask(title,phaseId);form.reset();setNewPhase(null)};
  const quickAdd=(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const form=e.currentTarget;const title=String(new FormData(form).get('title')||'').trim();if(!title)return;createTask(title);form.reset();setQuickOpen(false)};
+ const uploadImages=async (files:FileList|null)=>{
+  if(!files||!selected)return;
+  setUploading(true);setImageError('');
+  const added:Task['attachments']=[];
+  try {
+   for(const file of Array.from(files)){
+    if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type))throw new Error('Use JPG, PNG, WebP or GIF images.');
+    if(file.size>8*1024*1024)throw new Error('Each image must be 8 MB or smaller.');
+    const id=uid();await saveImage(id,file);added.push({id,name:file.name,type:file.type,size:file.size});
+   }
+   updateTask({...selected,attachments:[...selected.attachments,...added]});
+  }catch(err){setImageError(err instanceof Error?err.message:'Image upload failed.');}
+  finally{setUploading(false);}
+ };
+ const removeAttachment=async(id:string)=>{
+  if(!selected)return;
+  try{await deleteImage(id);updateTask({...selected,attachments:selected.attachments.filter(a=>a.id!==id)});}catch{setImageError('Could not remove image.');}
+ };
  const phaseStats=useMemo(()=>Object.fromEntries(board.phases.map(p=>{const list=board.tasks.filter(t=>t.phaseId===p.id);return[p.id,{done:list.filter(t=>t.status==='Completed').length,total:list.length}]})),[board]);
  if(!ready)return null;
  return <main>
@@ -44,7 +64,7 @@ export default function Home(){
     <div className="columnHead"><div><span className="phaseNum">{isIdeas?'INBOX':`PHASE ${index}`}</span><h2>{phase.name}</h2><p>{stat.done}/{stat.total} completed</p></div><span className="count">{stat.total}</span></div>
     <div className="cards">{board.tasks.filter(t=>t.phaseId===phase.id).map(task=><article draggable onDragStart={e=>e.dataTransfer.setData('taskId',task.id)} onClick={()=>setSelected(task)} className="card" key={task.id}>
       <div className="cardTop"><span className={`priority ${task.priority.toLowerCase()}`}>{task.priority}</span><span className={`status ${task.status.replaceAll(' ','').toLowerCase()}`}>{task.status}</span></div>
-      <h3>{task.title}</h3>{task.description&&<p>{task.description}</p>}
+      <div className="importanceRow"><span className={`importance ${task.importance.replaceAll(' ','').toLowerCase()}`}>{task.importance}</span>{task.attachments.length>0&&<span className="attachmentCount">📎 {task.attachments.length}</span>}</div><h3>{task.title}</h3>{task.description&&<p>{task.description}</p>}
       <div className="people"><b>Owner:</b> {task.owner||'Unassigned'}{task.contributors.length>0&&<span> +{task.contributors.length} contributor{task.contributors.length>1?'s':''}</span>}</div>
       <div className="meta"><span>{task.dueDate?`Due ${task.dueDate}`:'No due date'}</span><span className="moveHint">Tap to edit →</span></div>
     </article>)}</div>
@@ -56,10 +76,25 @@ export default function Home(){
    <label>Title<input value={selected.title} onChange={e=>updateTask({...selected,title:e.target.value})}/></label>
    <label>Description<textarea rows={4} value={selected.description} onChange={e=>updateTask({...selected,description:e.target.value})}/></label>
    <div className="grid2"><label>Status<select value={selected.status} onChange={e=>updateTask({...selected,status:e.target.value as Status})}>{statuses.map(x=><option key={x}>{x}</option>)}</select></label><label>Priority<select value={selected.priority} onChange={e=>updateTask({...selected,priority:e.target.value as Priority})}>{priorities.map(x=><option key={x}>{x}</option>)}</select></label></div>
+   <label>Importance<select value={selected.importance} onChange={e=>updateTask({...selected,importance:e.target.value as Importance})}>{importanceOptions.map(x=><option key={x}>{x}</option>)}</select></label>
    <div className="grid2"><label>Task owner<input value={selected.owner} placeholder="One owner" onChange={e=>updateTask({...selected,owner:e.target.value})}/></label><label>Due date<input type="date" value={selected.dueDate} onChange={e=>updateTask({...selected,dueDate:e.target.value})}/></label></div>
    <label>Contributors <span className="labelHint">(separate names with commas)</span><input value={selected.contributors.join(', ')} placeholder="Alex, Sam, Priya" onChange={e=>updateTask({...selected,contributors:e.target.value.split(',').map(x=>x.trim()).filter(Boolean)})}/></label>
    <label>Move to<select value={selected.phaseId} onChange={e=>updateTask({...selected,phaseId:e.target.value})}>{board.phases.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select></label>
+   <div className="attachmentSection"><div className="attachmentHeading"><strong>Image attachments</strong><small>Stored on this device only</small></div>
+    <div className="attachmentGrid">{selected.attachments.map(a=><AttachmentTile key={a.id} id={a.id} name={a.name} onRemove={()=>void removeAttachment(a.id)}/>)}</div>
+    <label className="uploadButton">＋ Add images<input aria-label="Add images" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple disabled={uploading} onChange={e=>{void uploadImages(e.target.files);e.target.value='';}}/></label>
+    {uploading&&<p role="status">Saving images…</p>}{imageError&&<p className="imageError" role="alert">{imageError}</p>}
+   </div>
    <div className="modalActions"><button className="danger" onClick={()=>removeTask(selected.id)}>Delete</button><button onClick={()=>setSelected(null)}>Done</button></div>
   </section></div>}
  </main>
+}
+
+function AttachmentTile({id,name,onRemove}:{id:string;name:string;onRemove:()=>void}){
+ const [url,setUrl]=useState<string|null>(null);
+ useEffect(()=>{let active=true;let objectUrl:string|null=null;
+  void loadImage(id).then(blob=>{if(active&&blob){objectUrl=URL.createObjectURL(blob);setUrl(objectUrl);}}).catch(console.error);
+  return ()=>{active=false;if(objectUrl)URL.revokeObjectURL(objectUrl);};
+ },[id]);
+ return <div className="attachmentTile">{url?<a href={url} target="_blank" rel="noreferrer" aria-label={`View ${name}`}><img src={url} alt={name}/></a>:<div className="imagePlaceholder">Image unavailable</div>}<span title={name}>{name}</span><button type="button" aria-label={`Remove ${name}`} onClick={onRemove}>×</button></div>;
 }

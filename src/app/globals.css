@@ -42,3 +42,22 @@
   .mobilePhases { position:relative; top:auto; }
   .card { touch-action:pan-y; }
 }
+
+/* V6: importance and image attachments */
+.importanceRow{display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:8px}
+.importance{display:inline-block;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:800;background:#e7edf6;color:#52617a}
+.importance.must{background:#e0f4e9;color:#17643f}.importance.maybe{background:#fff0d5;color:#8a5908}.importance.mostlynot{background:#ececf1;color:#636475}
+.attachmentCount{font-size:11px;color:#68768a}
+.attachmentSection{border-top:1px solid #e7ebf0;padding-top:16px;margin-top:18px}
+.attachmentHeading{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:12px}
+.attachmentHeading small{color:#788399;font-size:11px}
+.attachmentGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.attachmentTile{position:relative;min-width:0;border:1px solid #e1e6ed;border-radius:10px;overflow:hidden;background:#f5f7fb}
+.attachmentTile a{display:block;height:95px}.attachmentTile img{width:100%;height:95px;object-fit:cover}
+.attachmentTile span{display:block;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;font-size:10px;padding:7px 8px 8px}
+.attachmentTile button{position:absolute;top:4px;right:4px;background:#fff;color:#9b2634;border:1px solid #ddd;min-width:28px;min-height:28px;padding:0;border-radius:50%;font-size:19px}
+.imagePlaceholder{height:95px;display:grid;place-items:center;font-size:11px;color:#7a8499}
+.modal .uploadButton{display:inline-flex;align-items:center;justify-content:center;margin:12px 0 0;padding:10px 14px;border-radius:9px;background:#eef1f6;color:#172033;cursor:pointer;min-height:44px}
+.uploadButton input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.imageError{color:#b73842;font-size:12px}
+@media(max-width:700px){.attachmentGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
