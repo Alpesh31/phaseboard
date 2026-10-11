@@ -163,3 +163,31 @@
   position: relative;
   z-index: 1;
 }
+/* ATLAS360: Equal-width, responsive desktop phase columns */
+@media (min-width: 701px) {
+  .board {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    width: 100%;
+    max-width: none;
+    overflow-x: visible;
+    align-items: start;
+  }
+
+  .board > .column {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .board .card {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .board .taskTags {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+}
