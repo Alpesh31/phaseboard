@@ -185,7 +185,23 @@ const createTask = async (title: string, phaseId?: string) => {
    {board.phases.map((phase,index)=>{const stat=phaseStats[phase.id];const isIdeas=phase.id==='ideas';return <div data-mobile-active={activePhase===index} className={`column ${isIdeas?'ideasColumn':''}`} key={phase.id} onDragOver={e=>{if(editable)e.preventDefault()}} onDrop={e=>{const id=e.dataTransfer.getData('taskId');if(id&&editable)void moveTask(id,phase.id)}}>
     <div className="columnHead"><div><span className="phaseNum">{isIdeas?'INBOX':`PHASE ${index}`}</span><h2>{phase.name}</h2><p>{stat.done}/{stat.total} completed</p></div><span className="count">{stat.total}</span></div>
 
-    <div className="cards">{board.tasks.filter(t=>t.phaseId===phase.id).map(task=><article draggable={canEditTask(task)} onDragStart={e=>{if(canEditTask(task))e.dataTransfer.setData('taskId',task.id);else e.preventDefault()}} onClick={()=>void openTask(task)} className="card" key={task.id}>
+    <div className="cards">{board.tasks
+  .filter(t => t.phaseId === phase.id)
+  .sort((a, b) => {
+    // Completed tasks always at the bottom
+    if (a.status === 'Completed' && b.status !== 'Completed') return 1;
+    if (b.status === 'Completed' && a.status !== 'Completed') return -1;
+
+    // High priority first
+    const priorityRank = { High: 3, Medium: 2, Low: 1 };
+    const priorityDiff = priorityRank[b.priority] - priorityRank[a.priority];
+    if (priorityDiff !== 0) return priorityDiff;
+
+    // Importance: Must, Maybe, Mostly Not
+    const importanceRank = { Must: 3, Maybe: 2, 'Mostly Not': 1 };
+    return importanceRank[b.importance] - importanceRank[a.importance];
+  })
+  .map(task =><article draggable={canEditTask(task)} onDragStart={e=>{if(canEditTask(task))e.dataTransfer.setData('taskId',task.id);else e.preventDefault()}} onClick={()=>void openTask(task)} className="card" key={task.id}>
       <div className="cardTop"><div className="taskTags"><span className={`status ${task.status.replaceAll(' ','').toLowerCase()}`}>
   ◉ {task.status}
 </span>
