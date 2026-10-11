@@ -2,6 +2,7 @@
 import UserManagement from '@/components/user-management';
 import { useProfileMenu } from '@/components/profile-menu';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { CircleDot, Star, Flag } from "lucide-react";
 import { BoardData, Priority, Status, Importance, Task } from '@/lib/types';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { useAccess } from '@/components/auth-shell';
@@ -186,7 +187,20 @@ const createTask = async (title: string, phaseId?: string) => {
     <div className="columnHead"><div><span className="phaseNum">{isIdeas?'INBOX':`PHASE ${index}`}</span><h2>{phase.name}</h2><p>{stat.done}/{stat.total} completed</p></div><span className="count">{stat.total}</span></div>
 
     <div className="cards">{board.tasks.filter(t=>t.phaseId===phase.id).map(task=><article draggable={canEditTask(task)} onDragStart={e=>{if(canEditTask(task))e.dataTransfer.setData('taskId',task.id);else e.preventDefault()}} onClick={()=>void openTask(task)} className="card" key={task.id}>
-      <div className="cardTop"><div className="taskTags"><span className={`status ${task.status.replaceAll(' ','').toLowerCase()}`}>{task.status}</span><span className={`importance ${task.importance.replaceAll(' ','').toLowerCase()}`}>{task.importance}</span><span className={`priority ${task.priority.toLowerCase()}`}>{task.priority}</span></div>{task.attachments.length>0&&<span className="attachmentCount">📎 {task.attachments.length}</span>}</div><h3>{task.title}</h3>{task.description&&<p>{task.description}</p>}
+      <div className="cardTop"><div className="taskTags"><span className={`status ${task.status.replaceAll(' ', '').toLowerCase()}`}>
+  <CircleDot size={12} aria-hidden="true" />
+  {task.status}
+</span>
+
+<span className={`importance ${task.importance.replaceAll(' ', '').toLowerCase()}`}>
+  <Star size={12} aria-hidden="true" />
+  {task.importance}
+</span>
+
+<span className={`priority ${task.priority.toLowerCase()}`}>
+  <Flag size={12} aria-hidden="true" />
+  {task.priority}
+</span></div>{task.attachments.length>0&&<span className="attachmentCount">📎 {task.attachments.length}</span>}</div><h3>{task.title}</h3>{task.description&&<p>{task.description}</p>}
       <div className="people"><b>Owner:</b> {task.owner||'Unassigned'}{task.contributors.length>0&&<span> +{task.contributors.length} contributor{task.contributors.length>1?'s':''}</span>}</div>
       <div className="meta"><span>{task.dueDate?`Due ${task.dueDate}`:'No due date'}</span><span className="moveHint">Tap for details →</span></div>
     </article>)}</div>
