@@ -73,7 +73,35 @@ export default function Home(){
  };
  const removeTask=async(id:string)=>{if(!editable||!board.tasks.some(t=>t.id===id&&canEditTask(t)))return;const {error:e}=await client.from('tasks').delete().eq('id',id);if(e)fail(e);else{setSelected(null);await refresh();}};
  const moveTask=async(taskId:string,phaseId:string)=>{if(!editable||!board.tasks.some(t=>t.id===taskId&&canEditTask(t)))return;const {error:e}=await client.from('tasks').update({phase_id:phaseId}).eq('id',taskId);if(e)fail(e);else await refresh();};
- const createTask=async(title:string,phaseId?:string)=>{if(!access||!editable)return;const dest=phaseId||board.phases[0]?.id;if(!dest)return;const {error:e}=await client.from('tasks').insert({project_id:access.projectId,phase_id:dest,title,created_by:access.userId});if(e)fail(e);else await refresh();};
+const createTask = async (title: string, phaseId?: string) => {
+  if (!access || !editable) return;
+
+  const dest = phaseId || board.phases[0]?.id;
+  if (!dest) return;
+
+  const creator = members.find(
+    (member) => member.user_id === access.userId
+  );
+
+  const creatorName =
+    creator?.display_name ||
+    creator?.email ||
+    access.userId;
+
+  const { error: e } = await client.from('tasks').insert({
+    project_id: access.projectId,
+    phase_id: dest,
+    title,
+    created_by: access.userId,
+    owner_name: creatorName
+  });
+
+  if (e) {
+    fail(e);
+  } else {
+    await refresh();
+  }
+};
  const addTask=(e:FormEvent<HTMLFormElement>,phaseId:string)=>{e.preventDefault();const form=e.currentTarget;const title=String(new FormData(form).get('title')||'').trim();if(!title)return;void createTask(title,phaseId);form.reset();setNewPhase(null)};
  const quickAdd=(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const form=e.currentTarget;const title=String(new FormData(form).get('title')||'').trim();if(!title)return;void createTask(title);form.reset();setQuickOpen(false)};
  const uploadImages=async(files:FileList|null)=>{
