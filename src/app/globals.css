@@ -151,14 +151,15 @@
 .taskReadOnlyField{margin-bottom:16px;min-width:0}
 .taskReadOnlyField strong{display:block;font-size:12px;color:#5e687b;margin-bottom:7px}
 .taskReadOnlyField p{font-size:14px;color:#172033;margin:0;overflow-wrap:anywhere}
-.taskReadOnlyDescription{white-space:pre-wrap;line-height:1.55}/* Keep task dialogs above the navigation and profile menu */
-.task-dialog-overlay {
+.taskReadOnlyDescription{white-space:pre-wrap;line-height:1.55}
+/* Task dialog must appear above the profile button and menu */
+.taskDialogOverlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 9999;
 }
 
-.task-dialog {
-  position: fixed;
-  z-index: 1001;
+.taskDialogOverlay .modal {
+  position: relative;
+  z-index: 1;
 }
