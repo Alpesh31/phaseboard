@@ -212,3 +212,17 @@
 .card .taskTags .priority {
   justify-self: end;
 }
+.card .cardTop {
+  position: relative;
+}
+
+.card .taskTags {
+  flex: 1;
+  min-width: 0;
+}
+
+.card .attachmentCount {
+  position: absolute;
+  right: 0;
+  top: 28px;
+}
