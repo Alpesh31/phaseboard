@@ -23,6 +23,16 @@ export default function Home(){
  const [taskGrants,setTaskGrants]=useState<Record<string,Record<string,'view'|'edit'>>>({});
  const [myGrants,setMyGrants]=useState<Record<string,'view'|'edit'>>({});
  const [members,setMembers]=useState<{user_id:string;role:string;display_name?:string;email?:string}[]>([]);
+ // Resolve a user's display name from their user ID
+const getMemberName = (userId: string): string => {
+  const member = members.find(m => m.user_id === userId);
+
+  return (
+    member?.display_name?.trim() ||
+    member?.email ||
+    'Unknown user'
+  );
+};
  const [comments,setComments]=useState<{id:string;author_id:string;body:string;created_at:string}[]>([]);
  const [commentDraft,setCommentDraft]=useState('');
  const [adminPanel,setAdminPanel]=useState(false); const [usersOpen,setUsersOpen]=useState(false);
@@ -43,12 +53,49 @@ export default function Home(){
   ]);
   const failure=ph.error||ts.error||pr.error||mem.error||grants.error;
   if(failure){setError(failure.message);setReady(true);return;}
-  setError('');setMembers(mem.data||[]);setMyGrants(Object.fromEntries((grants.data||[]).map(g=>[g.task_id,g.permission as 'view'|'edit'])));
-  setBoard({projectName:pr.data?.name||'Phaseboard',phases:(ph.data||[]).map(p=>({id:p.id,name:p.name})),tasks:((ts.data||[]) as unknown as DbTask[]).map(convertTask)});
+setError('');
+
+setMembers(previousMembers => {
+  const existingById = new Map(
+    previousMembers.map(member => [member.user_id, member])
+  );
+
+  return (mem.data || []).map(member => ({
+    ...existingById.get(member.user_id),
+    ...member
+  }));
+});
+
+setMyGrants(
+  Object.fromEntries(
+    (grants.data || []).map(g => [
+      g.task_id,
+      g.permission as 'view' | 'edit'
+    ])
+  )
+);  setBoard({projectName:pr.data?.name||'Phaseboard',phases:(ph.data||[]).map(p=>({id:p.id,name:p.name})),tasks:((ts.data||[]) as unknown as DbTask[]).map(convertTask)});
   setAttachmentsPaths(Object.fromEntries((ts.data||[]).flatMap(t=>(t.task_attachments||[]).map(a=>[a.id,a.storage_path]))));
   setReady(true);
  };
- useEffect(()=>{if(!access)return;let live=true;const load=async()=>{try{const {data:{session}}=await client.auth.getSession();if(!session)return;const res=await fetch(`/api/members?projectId=${encodeURIComponent(access.projectId)}`,{headers:{Authorization:`Bearer ${session.access_token}`},cache:"no-store"});if(!res.ok)throw new Error("Could not load member names");const result=await res.json();if(live)setMembers(result.members||[]);}catch(e){if(live)fail(e)}};void load();return()=>{live=false}},[access?.projectId,usersOpen]);
+ useEffect(()=>{if(!access)return;let live=true;const load=async()=>{try{const {data:{session}}=await client.auth.getSession();if(!session)return;const res=await fetch(`/api/members?projectId=${encodeURIComponent(access.projectId)}`,{headers:{Authorization:`Bearer ${session.access_token}`},cache:"no-store"});if(!res.ok)throw new Error("Could not load member names");const result=await res.json();if (live) {
+  setMembers(previousMembers => {
+    const existingById = new Map(
+      previousMembers.map(member => [member.user_id, member])
+    );
+
+    return (result.members || []).map(
+      (member: {
+        user_id: string;
+        role: string;
+        display_name?: string;
+        email?: string;
+      }) => ({
+        ...existingById.get(member.user_id),
+        ...member
+      })
+    );
+  });
+}}catch(e){if(live)fail(e)}};void load();return()=>{live=false}},[access?.projectId,usersOpen]);
  useEffect(()=>registerActions(admin?{manageUsers:()=>setUsersOpen(true),managePhases:()=>{setAdminPanel(true);void Promise.all(board.phases.map(p=>loadAccess('phase',p.id)));}}:{}),[admin,registerActions]);
  useEffect(()=>{void refresh();},[access?.projectId]);
  useEffect(()=>{if(!access)return;const channel=client.channel('phaseboard-'+access.projectId)
@@ -169,8 +216,14 @@ const createTask = async (title: string, phaseId?: string) => {
      <div className="taskReadOnlyField"><strong>Due date</strong><p>{selected.dueDate||'—'}</p></div>
      <div className="taskReadOnlyField"><strong>Phase</strong><p>{board.phases.find(p=>p.id===selected.phaseId)?.name||'—'}</p></div>
     </div>
-    <div className="taskReadOnlyField"><strong>Contributors</strong><p>{selected.contributors.length?selected.contributors.map(id=>members.find(m=>m.user_id===id)?.display_name||members.find(m=>m.user_id===id)?.email||id).join(', '):'—'}</p></div>
-   </section>}
+<div className="taskReadOnlyField">
+  <strong>Contributors</strong>
+  <p>
+    {selected.contributors.length
+      ? selected.contributors.map(getMemberName).join(', ')
+      : '—'}
+  </p>
+</div>   </section>}
    <div className="attachmentSection"><div className="attachmentHeading"><strong>Image attachments</strong><small>Shared securely via Supabase</small></div>
     <div className="attachmentGrid">{selected.attachments.map(a=><AttachmentTile key={a.id} path={attachmentsPaths[a.id]} name={a.name} canRemove={canEditTask(selected)} onRemove={()=>void removeAttachment(a.id)}/>)}</div>
     {canEditTask(selected)&&<label className="uploadButton">＋ Add images<input aria-label="Add images" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple disabled={uploading} onChange={e=>{void uploadImages(e.target.files);e.target.value='';}}/></label>}
@@ -193,8 +246,15 @@ function ContributorsEditor({contributors,members,onChange}:{contributors:string
  const [query,setQuery]=useState('');
  const [open,setOpen]=useState(false);
  const choices=members.filter(m=>!contributors.includes(m.user_id) && (m.display_name||m.email||m.user_id).toLowerCase().includes(query.toLowerCase()));
- const label=(id:string)=>{const m=members.find(x=>x.user_id===id);return m?.display_name||m?.email||id;};
- return <div className="contributorsEditor">
+const label = (id: string) => {
+  const member = members.find(m => m.user_id === id);
+
+  return (
+    member?.display_name?.trim() ||
+    member?.email ||
+    'Unknown user'
+  );
+}; return <div className="contributorsEditor">
   <label htmlFor="contributor-input">Contributors <span className="labelHint">(project members only)</span></label>
   <div className="contributorChips" aria-label="Selected contributors">{contributors.map((id,index)=><span className="contributorChip" key={`${id}-${index}`}>{label(id)}<button type="button" aria-label={`Remove ${label(id)}`} onClick={()=>onChange(contributors.filter((_,i)=>i!==index))}>×</button></span>)}</div>
   <div className="contributorPicker"><input id="contributor-input" autoComplete="off" value={query} placeholder="Search project members…" onChange={e=>{setQuery(e.target.value);setOpen(true)}} onFocus={()=>setOpen(true)} aria-expanded={open} aria-controls="contributor-options"/>
