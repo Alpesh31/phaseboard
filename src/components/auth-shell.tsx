@@ -22,6 +22,7 @@ export default function AuthShell({ children }: { children: ReactNode }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [menuOpen,setMenuOpen]=useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const [profileOpen,setProfileOpen]=useState(false);
   const [fullName,setFullName]=useState('');
   const [newPassword,setNewPassword]=useState('');
@@ -140,6 +141,21 @@ export default function AuthShell({ children }: { children: ReactNode }) {
     }catch(e){setProfileError(e instanceof Error?e.message:'Unable to save profile.');}
     finally{setProfileBusy(false);}
   };
+  useEffect(() => {
+    if (!menuOpen) return;
+    const outside = (event: PointerEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [menuOpen]);
   const mustOnboard=!!user&&!user.user_metadata?.phaseboard_onboarded;
   useEffect(()=>{if(user?.user_metadata?.full_name)setFullName(user.user_metadata.full_name)},[user?.id]);
   const profileForm=(required:boolean)=><div className="authPage"><form className="authCard" onSubmit={saveProfile}>
@@ -168,5 +184,5 @@ export default function AuthShell({ children }: { children: ReactNode }) {
   if (!user || !membership) return <div className="authPage"><p role="status">Verifying your Phaseboard access…</p></div>;
   if(mustOnboard)return profileForm(true);
   if(profileOpen)return profileForm(false);
-  return <ProfileMenuContext.Provider value={{registerActions}}><div className="authSession"><div className="profileDropdown"><button type="button" className="profileTrigger" aria-expanded={menuOpen} aria-haspopup="menu" onClick={()=>setMenuOpen(v=>!v)}><span className="profileAvatar">{(user.user_metadata?.full_name||user.email||'U').slice(0,1).toUpperCase()}</span><span className="profileName">{user.user_metadata?.full_name||user.email}</span><span aria-hidden="true">⌄</span></button>{menuOpen&&<div className="profileMenu" role="menu"><div className="profileMenuIdentity"><strong>{user.user_metadata?.full_name||user.email}</strong><small>{user.email} · {membership.role}</small></div><button role="menuitem" onClick={()=>{setFullName(user.user_metadata?.full_name||'');setProfileOpen(true);setMenuOpen(false)}}>My Profile</button>{membership.role==='admin'&&<><button role="menuitem" onClick={()=>{actions.manageUsers?.();setMenuOpen(false)}}>Manage Users</button><button role="menuitem" onClick={()=>{actions.managePhases?.();setMenuOpen(false)}}>Manage Phase Permissions</button></>}<button role="menuitem" onClick={()=>void signOut()}>Sign Out</button></div>}</div></div><Access.Provider value={{projectId:membership.project_id,userId:user.id,role:membership.role}}>{children}</Access.Provider></ProfileMenuContext.Provider>;
+  return <ProfileMenuContext.Provider value={{registerActions}}><div className="authSession"><div className="profileDropdown" ref={profileMenuRef}><button type="button" className="profileTrigger" aria-expanded={menuOpen} aria-haspopup="menu" onClick={()=>setMenuOpen(v=>!v)}><span className="profileAvatar">{(user.user_metadata?.full_name||user.email||'U').slice(0,1).toUpperCase()}</span><span className="profileName">{user.user_metadata?.full_name||user.email}</span><span aria-hidden="true">⌄</span></button>{menuOpen&&<div className="profileMenu" role="menu"><div className="profileMenuIdentity"><strong>{user.user_metadata?.full_name||user.email}</strong><small>{user.email} · {membership.role}</small></div><button role="menuitem" onClick={()=>{setFullName(user.user_metadata?.full_name||'');setProfileOpen(true);setMenuOpen(false)}}>My Profile</button>{membership.role==='admin'&&<><button role="menuitem" onClick={()=>{actions.manageUsers?.();setMenuOpen(false)}}>Manage Users</button><button role="menuitem" onClick={()=>{actions.managePhases?.();setMenuOpen(false)}}>Manage Phase Permissions</button></>}<button role="menuitem" onClick={()=>{setMenuOpen(false);void signOut()}}>Sign Out</button></div>}</div></div><Access.Provider value={{projectId:membership.project_id,userId:user.id,role:membership.role}}>{children}</Access.Provider></ProfileMenuContext.Provider>;
 }

@@ -141,3 +141,6 @@
 .contributorOptions small{color:#6c778b}
 .contributorOptions p{padding:12px;color:#6c778b}
 @media(max-width:700px){.authSession{padding:7px 12px}.profileName{max-width:100px}.topbar{padding-right:150px}}
+
+/* V10.3: desktop header reserves room for the absolutely-positioned profile menu. */
+@media (min-width:701px) { .topbar { padding-right:260px; } .quickButton { flex-shrink:0; white-space:nowrap; } }
