@@ -226,3 +226,10 @@
   right: 0;
   top: 28px;
 }
+.card .status,
+.card .importance,
+.card .priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
