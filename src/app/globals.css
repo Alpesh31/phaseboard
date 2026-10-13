@@ -233,3 +233,33 @@
   align-items: center;
   gap: 4px;
 }
+/* Task Manager redesign */
+.hero{display:none!important}
+.ideasStrip{background:#fff;border:1px solid #e1e7f0;border-radius:16px;padding:20px;margin:18px 0 22px}
+.ideasHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.ideasHeader h2{margin:4px 0;font-size:21px}
+.ideasGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.ideaCard{cursor:pointer;min-width:0;border-left:4px solid #2563eb}
+.ideaCard.privatePreview{cursor:default;background:#f8fafc}
+.project-qe-tasks{--project-color:#7c3aed}
+.project-admin-task{--project-color:#b7791f}
+.project-personal{--project-color:#0f766e}
+.project-atlas360{--project-color:#2563eb}
+.ideaCard{border-left-color:var(--project-color,#2563eb)}
+.projectPill{display:inline-block;font-size:12px;font-weight:700;color:var(--project-color,#2563eb);background:#f2f5fb;border-radius:999px;padding:4px 9px;margin-bottom:9px}
+.privateLabel{font-size:12px;color:#536277}
+.viewIdeas{margin-top:14px;border:1px solid #ccd5e4;background:white;color:#25385a;padding:10px 15px;border-radius:9px;cursor:pointer}
+.ideaAdd{display:flex;flex-wrap:wrap;align-items:end;gap:10px;margin:12px 0}
+.ideaAdd label{display:flex;flex-direction:column;gap:4px}
+.ideaAdd select{min-width:140px;padding:8px}
+.board .column{border-top:4px solid var(--project-color,#2563eb)}
+.board .columnHead h2{color:var(--project-color,#2563eb)}
+.dueBadge{border-radius:6px;padding:4px 6px;display:inline-block;font-size:12px}
+.dueBadge.upcoming{background:#fff3bd;color:#674d00;font-weight:700}
+.dueBadge.soon{background:#ffdbb5;color:#713c00;font-weight:700}
+.dueBadge.urgent{background:#ffd5d5;color:#8a1010;font-weight:700}
+.emptyBoard{color:#667085}
+@media(min-width:701px){.board{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1100px){.ideasGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.ideasStrip{padding:14px;margin:12px 0}.ideasGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.ideasHeader h2{font-size:18px}.board>.column{display:none}.board>.column[data-mobile-active="true"]{display:block}}
+@media(max-width:440px){.ideasGrid{grid-template-columns:1fr}}
