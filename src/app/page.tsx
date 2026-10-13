@@ -10,13 +10,26 @@ const statuses:Status[]=['Not Started','In Progress','Blocked','Completed'];
 const priorities:Priority[]=['Low','Medium','High'];
 const importanceOptions:Importance[]=['Must','Maybe','Mostly Not'];
 const uid=()=>crypto.randomUUID();
+const projectNames=['ATLAS360','QE Tasks','Admin Task','Personal'] as const;
+type IdeaPreview={task_id:string;title:string;idea_project:string;priority:Priority;status:Status;due_date:string|null};
+const priorityWeight:Record<Priority,number>={High:0,Medium:1,Low:2};
+const taskSort=(a:{status:Status;priority:Priority;dueDate:string},b:{status:Status;priority:Priority;dueDate:string})=>
+ Number(a.status==='Completed')-Number(b.status==='Completed') ||
+ priorityWeight[a.priority]-priorityWeight[b.priority] ||
+ (a.dueDate||'9999-12-31').localeCompare(b.dueDate||'9999-12-31');
+const dueWarning=(dueDate:string,status:Status)=>{
+ if(!dueDate||status==='Completed')return '';
+ const now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+ const due=new Date(`${dueDate}T00:00:00`);const days=Math.round((due.getTime()-today.getTime())/86400000);
+ return days<=1?'urgent':days<=3?'soon':days<=7?'upcoming':'';
+};
 type DbTask = {id:string;title:string;description:string;priority:Priority;status:Status;importance:Importance;owner_name:string;due_date:string|null;phase_id:string;created_by:string;created_by_admin:boolean;visible_to_everyone:boolean;task_contributors:{name:string;user_id:string|null}[];task_attachments:{id:string;filename:string;content_type:string;bytes:number;storage_path:string}[]};
 const convertTask=(t:DbTask):Task=>({id:t.id,title:t.title,description:t.description,priority:t.priority,status:t.status,importance:t.importance,owner:t.owner_name,contributors:(t.task_contributors||[]).map(c=>c.user_id||c.name),dueDate:t.due_date||'',phaseId:t.phase_id,createdBy:t.created_by,createdByAdmin:t.created_by_admin,attachments:(t.task_attachments||[]).map(a=>({id:a.id,name:a.filename,type:a.content_type,size:a.bytes}))});
 
 export default function Home(){
- const boardRef=useRef<HTMLElement|null>(null); const touchStart=useRef<{x:number,y:number}|null>(null); const [activePhase,setActivePhase]=useState(0);
+ const boardRef=useRef<HTMLElement|null>(null); const touchStart=useRef<{x:number,y:number}|null>(null); const [activePhase,setActivePhase]=useState(0); const [showAllIdeas,setShowAllIdeas]=useState(false); const [ideaPreviews,setIdeaPreviews]=useState<IdeaPreview[]>([]); const [newIdeaProject,setNewIdeaProject]=useState('ATLAS360');
  const access=useAccess(); const client=useMemo(()=>getSupabaseClient(),[]);
- const [board,setBoard]=useState<BoardData>({projectName:'Phaseboard',phases:[],tasks:[]});
+ const [board,setBoard]=useState<BoardData>({projectName:'Task Manager',phases:[],tasks:[]});
  const [ready,setReady]=useState(false); const [error,setError]=useState('');
  const [selected,setSelected]=useState<Task|null>(null); const [uploading,setUploading]=useState(false); const [imageError,setImageError]=useState(''); const [newPhase,setNewPhase]=useState<string|null>(null); const [quickOpen,setQuickOpen]=useState(false);
  const [allowed,setAllowed]=useState<Record<string,string[]>>({});
@@ -44,16 +57,18 @@ const getMemberName = (userId: string): string => {
  const canEditTask=(task:Task)=>!!access&&(admin||(access.role==='editor'&&((task.createdBy===access.userId&&!task.createdByAdmin)||myGrants[task.id]==='edit')));
  const refresh=async()=>{
   if(!access)return;
-  const [ph,ts,pr,mem,grants]=await Promise.all([
+  const [ph,ts,pr,mem,grants,previews]=await Promise.all([
    client.from('phases').select('id,name,visible_to_everyone').eq('project_id',access.projectId).order('position'),
    client.from('tasks').select('id,title,description,priority,status,importance,owner_name,due_date,phase_id,created_by,created_by_admin,visible_to_everyone,task_contributors(name,user_id),task_attachments(id,filename,content_type,bytes,storage_path)').eq('project_id',access.projectId).order('created_at'),
    client.from('projects').select('name').eq('id',access.projectId).single(),
    client.from('project_members').select('user_id,role').eq('project_id',access.projectId),
-   client.from('task_access').select('task_id,permission').eq('user_id',access.userId)
+   client.from('task_access').select('task_id,permission').eq('user_id',access.userId),
+   client.from('idea_previews').select('task_id,title,idea_project,priority,status,due_date').eq('project_id',access.projectId)
   ]);
-  const failure=ph.error||ts.error||pr.error||mem.error||grants.error;
+  const failure=ph.error||ts.error||pr.error||mem.error||grants.error||previews.error;
   if(failure){setError(failure.message);setReady(true);return;}
 setError('');
+setIdeaPreviews((previews.data||[]) as IdeaPreview[]);
 
 setMembers(previousMembers => {
   const existingById = new Map(
@@ -73,7 +88,7 @@ setMyGrants(
       g.permission as 'view' | 'edit'
     ])
   )
-);  setBoard({projectName:pr.data?.name||'Phaseboard',phases:(ph.data||[]).map(p=>({id:p.id,name:p.name})),tasks:((ts.data||[]) as unknown as DbTask[]).map(convertTask)});
+);  setBoard({projectName:pr.data?.name||'Task Manager',phases:(ph.data||[]).map(p=>({id:p.id,name:p.name})),tasks:((ts.data||[]) as unknown as DbTask[]).map(convertTask)});
   setAttachmentsPaths(Object.fromEntries((ts.data||[]).flatMap(t=>(t.task_attachments||[]).map(a=>[a.id,a.storage_path]))));
   setReady(true);
  };
@@ -102,8 +117,10 @@ setMyGrants(
   .on('postgres_changes',{event:'*',schema:'public',table:'tasks',filter:`project_id=eq.${access.projectId}`},()=>{void refresh()})
   .on('postgres_changes',{event:'*',schema:'public',table:'phases',filter:`project_id=eq.${access.projectId}`},()=>{void refresh()})
   .subscribe();return()=>{void client.removeChannel(channel)}},[access?.projectId]);
- const completed=board.tasks.filter(t=>t.status==='Completed').length;
- const progress=board.tasks.length?Math.round(completed/board.tasks.length*100):0;
+ const ideasPhase=board.phases.find(p=>p.name==='Ideas / To-Do');
+ const visibleColumns=board.phases.filter(p=>projectNames.includes(p.name as typeof projectNames[number])&&(admin||!['Admin Task','Personal'].includes(p.name)));
+ const sortedIdeas=[...ideaPreviews].sort((a,b)=>taskSort({status:a.status,priority:a.priority,dueDate:a.due_date||''},{status:b.status,priority:b.priority,dueDate:b.due_date||''}));
+ const displayedIdeas=showAllIdeas?sortedIdeas:sortedIdeas.slice(0,8);
  const fail=(e:unknown)=>setError(e instanceof Error?e.message:String(e));
  const updateTask=async(task:Task)=>{
   if(!canEditTask(task))return;
@@ -120,10 +137,10 @@ setMyGrants(
  };
  const removeTask=async(id:string)=>{if(!editable||!board.tasks.some(t=>t.id===id&&canEditTask(t)))return;const {error:e}=await client.from('tasks').delete().eq('id',id);if(e)fail(e);else{setSelected(null);await refresh();}};
  const moveTask=async(taskId:string,phaseId:string)=>{if(!editable||!board.tasks.some(t=>t.id===taskId&&canEditTask(t)))return;const {error:e}=await client.from('tasks').update({phase_id:phaseId}).eq('id',taskId);if(e)fail(e);else await refresh();};
-const createTask = async (title: string, phaseId?: string) => {
+const createTask = async (title: string, phaseId?: string, ideaProject='ATLAS360') => {
   if (!access || !editable) return;
 
-  const dest = phaseId || board.phases[0]?.id;
+  const dest = phaseId || ideasPhase?.id;
   if (!dest) return;
 
   const creator = members.find(
@@ -140,7 +157,8 @@ const createTask = async (title: string, phaseId?: string) => {
     phase_id: dest,
     title,
     created_by: access.userId,
-    owner_name: creatorName
+    owner_name: creatorName,
+    idea_project: ideaProject
   });
 
   if (e) {
@@ -149,8 +167,8 @@ const createTask = async (title: string, phaseId?: string) => {
     await refresh();
   }
 };
- const addTask=(e:FormEvent<HTMLFormElement>,phaseId:string)=>{e.preventDefault();const form=e.currentTarget;const title=String(new FormData(form).get('title')||'').trim();if(!title)return;void createTask(title,phaseId);form.reset();setNewPhase(null)};
- const quickAdd=(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const form=e.currentTarget;const title=String(new FormData(form).get('title')||'').trim();if(!title)return;void createTask(title);form.reset();setQuickOpen(false)};
+ const addTask=(e:FormEvent<HTMLFormElement>,phaseId:string)=>{e.preventDefault();const form=e.currentTarget;const title=String(new FormData(form).get('title')||'').trim();if(!title)return;void createTask(title,phaseId,phaseId===ideasPhase?.id?newIdeaProject:(board.phases.find(p=>p.id===phaseId)?.name||'ATLAS360'));form.reset();setNewPhase(null)};
+ const quickAdd=(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const form=e.currentTarget;const title=String(new FormData(form).get('title')||'').trim();if(!title)return;void createTask(title,ideasPhase?.id,newIdeaProject);form.reset();setQuickOpen(false)};
  const uploadImages=async(files:FileList|null)=>{
   if(!files||!selected||!access||!canEditTask(selected))return;
   setUploading(true);setImageError('');
@@ -173,54 +191,35 @@ const createTask = async (title: string, phaseId?: string) => {
  const loadTaskGrants=async(id:string)=>{const {data,error:e}=await client.from('task_access').select('user_id,permission').eq('task_id',id);if(e)fail(e);else setTaskGrants(old=>({...old,[id]:Object.fromEntries((data||[]).map(x=>[x.user_id,x.permission as 'view'|'edit']))}));};
  const setTaskGrant=async(taskId:string,userId:string,permission:'none'|'view'|'edit')=>{if(!admin)return;const query=permission==='none'?client.from('task_access').delete().eq('task_id',taskId).eq('user_id',userId):client.from('task_access').upsert({task_id:taskId,user_id:userId,permission},{onConflict:'task_id,user_id'});const {error:e}=await query;if(e)fail(e);else{await loadTaskGrants(taskId);await refresh();}};
  const phaseStats=useMemo(()=>Object.fromEntries(board.phases.map(p=>{const list=board.tasks.filter(t=>t.phaseId===p.id);return[p.id,{done:list.filter(t=>t.status==='Completed').length,total:list.length}]})),[board]);
- if(!ready)return <main><p role='status'>Loading shared Phaseboard…</p></main>;
+ if(!ready)return <main><p role='status'>Loading Task Manager…</p></main>;
  return <main>
   {error&&<p role="alert" className="imageError">{error} <button onClick={()=>void refresh()}>Retry</button></p>}
-  <header className="topbar"><div><div className="brand">Phaseboard</div><div className="tagline">Capture ideas. Turn them into action.</div></div>{editable&&<button className="quickButton" onClick={()=>setQuickOpen(true)}>＋ Quick Add</button>}</header>
+  <header className="topbar"><div><div className="brand">Task Manager</div><div className="tagline">Ideas, priorities and projects in one place.</div></div>{editable&&<button className="quickButton" onClick={()=>setQuickOpen(true)}>＋ Quick Add</button>}</header>
 
   {admin&&adminPanel&&<div className="overlay" onMouseDown={()=>setAdminPanel(false)}><section id="admin-visibility-panel" role="dialog" aria-modal="true" className="adminPanel phaseModal" onMouseDown={e=>e.stopPropagation()} aria-label="Phase access settings"><div className="modalHead"><h2>Phase access</h2><button type="button" onClick={()=>setAdminPanel(false)} aria-label="Close phase access">×</button></div><p>Editors can see phase columns to create their own private tasks. Viewers see a phase only when it is explicitly granted here or when a task in that phase is shared with them. Phase access never reveals other tasks.</p>{board.phases.map(phase=><div className="adminPhaseRow" key={phase.id}><strong>{phase.name}</strong><div className="adminMemberList"><button type="button" className="ghost" onClick={()=>void loadAccess('phase',phase.id)}>Refresh phase grants</button>{members.filter(m=>m.role==='viewer').length===0?<p>No Viewers have been added yet.</p>:members.filter(m=>m.role==='viewer').map(m=><label key={m.user_id}><input type="checkbox" checked={(allowed[phase.id]||[]).includes(m.user_id)} onChange={e=>void changeAccess('phase',phase.id,m.user_id,e.target.checked)}/>{m.display_name||m.email||m.user_id.slice(0,8)} (Viewer)</label>)}</div></div>)}</section></div>}
-  <section className="hero"><div><h1 className="projectTitle">ATLAS360</h1><p className="heroHint">Add thoughts to Ideas / To-Do, then move them into a phase when you're ready.</p></div><div className="progressBox"><div><b>{progress}%</b> complete</div><div className="progress"><span style={{width:`${progress}%`}}/></div><small>{completed} of {board.tasks.length} items completed</small></div></section>
-  <nav className="mobilePhases" aria-label="Choose phase">{board.phases.map((phase,index)=><button key={phase.id} type="button" className={activePhase===index?'active':''} aria-current={activePhase===index?'step':undefined} onClick={()=>setActivePhase(index)}>{phase.id==='ideas'?'Ideas':phase.name}</button>)}</nav>
-  <section className="board" ref={boardRef} onTouchStart={e=>{if(window.innerWidth>700)return;const t=e.touches[0];touchStart.current={x:t.clientX,y:t.clientY};}} onTouchEnd={e=>{if(window.innerWidth>700||!touchStart.current)return;const t=e.changedTouches[0];const dx=t.clientX-touchStart.current.x;const dy=t.clientY-touchStart.current.y;touchStart.current=null;if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.4){setActivePhase(i=>Math.max(0,Math.min(board.phases.length-1,i+(dx<0?1:-1))));}}}>
-   {board.phases.map((phase,index)=>{const stat=phaseStats[phase.id];const isIdeas=phase.id==='ideas';return <div data-mobile-active={activePhase===index} className={`column ${isIdeas?'ideasColumn':''}`} key={phase.id} onDragOver={e=>{if(editable)e.preventDefault()}} onDrop={e=>{const id=e.dataTransfer.getData('taskId');if(id&&editable)void moveTask(id,phase.id)}}>
-    <div className="columnHead"><div><span className="phaseNum">{isIdeas?'INBOX':`PHASE ${index}`}</span><h2>{phase.name}</h2><p>{stat.done}/{stat.total} completed</p></div><span className="count">{stat.total}</span></div>
-
-    <div className="cards">{board.tasks
-  .filter(t => t.phaseId === phase.id)
-  .sort((a, b) => {
-    // Completed tasks always at the bottom
-    if (a.status === 'Completed' && b.status !== 'Completed') return 1;
-    if (b.status === 'Completed' && a.status !== 'Completed') return -1;
-
-    // High priority first
-    const priorityRank = { High: 3, Medium: 2, Low: 1 };
-    const priorityDiff = priorityRank[b.priority] - priorityRank[a.priority];
-    if (priorityDiff !== 0) return priorityDiff;
-
-    // Importance: Must, Maybe, Mostly Not
-    const importanceRank = { Must: 3, Maybe: 2, 'Mostly Not': 1 };
-    return importanceRank[b.importance] - importanceRank[a.importance];
-  })
-  .map(task =><article draggable={canEditTask(task)} onDragStart={e=>{if(canEditTask(task))e.dataTransfer.setData('taskId',task.id);else e.preventDefault()}} onClick={()=>void openTask(task)} className="card" key={task.id}>
-      <div className="cardTop"><div className="taskTags"><span className={`status ${task.status.replaceAll(' ','').toLowerCase()}`}>
-  ◉ {task.status}
-</span>
-
-<span className={`importance ${task.importance.replaceAll(' ','').toLowerCase()}`}>
-  ☆ {task.importance}
-</span>
-
-<span className={`priority ${task.priority.toLowerCase()}`}>
-  ⚑ {task.priority}
-</span></div>{task.attachments.length>0&&<span className="attachmentCount">📎 {task.attachments.length}</span>}</div><h3>{task.title}</h3>{task.description&&<p>{task.description}</p>}
+  {ideasPhase&&<section className="ideasStrip" aria-label="Ideas and to-do">
+   <div className="ideasHeader"><div><span className="phaseNum">INBOX</span><h2>Ideas / To-Do <span className="count">{sortedIdeas.length}</span></h2></div>{editable&&<button className="addTask" type="button" onClick={()=>setNewPhase(ideasPhase.id)}>＋ Add idea</button>}</div>
+   {editable&&newPhase===ideasPhase.id&&<form className="quickAdd ideaAdd" onSubmit={e=>addTask(e,ideasPhase.id)}><input name="title" required autoFocus placeholder="Capture an idea..."/><label>Project <select value={newIdeaProject} onChange={e=>setNewIdeaProject(e.target.value)}>{projectNames.filter(n=>admin||!['Admin Task','Personal'].includes(n)).map(n=><option key={n}>{n}</option>)}</select></label><button>Add</button><button type="button" className="ghost" onClick={()=>setNewPhase(null)}>Cancel</button></form>}
+   <div className="ideasGrid">{displayedIdeas.map(idea=>{const task=board.tasks.find(t=>t.id===idea.task_id);const privateIdea=!task;const warning=dueWarning(idea.due_date||'',idea.status);return <article key={idea.task_id} className={`card ideaCard project-${idea.idea_project.toLowerCase().replaceAll(' ','-')} ${privateIdea?'privatePreview':''}`} role={task?'button':undefined} tabIndex={task?0:undefined} onClick={()=>{if(task)void openTask(task)}} onKeyDown={e=>{if(task&&(e.key==='Enter'||e.key===' ')){e.preventDefault();void openTask(task)}}}>
+    <span className="projectPill">{idea.idea_project}</span><h3>{task?.title||idea.title}</h3>{privateIdea?<p className="privateLabel">Restricted preview · Details not shared</p>:<div className="taskTags"><span className={`priority ${idea.priority.toLowerCase()}`}>⚑ {idea.priority}</span><span className="status">{idea.status}</span></div>}{!privateIdea&&idea.due_date&&<p className={`dueBadge ${warning}`}>Due {idea.due_date}{warning==='urgent'?' · Urgent':warning==='soon'?' · Soon':warning==='upcoming'?' · Upcoming':''}</p>}
+   </article>})}</div>
+   {sortedIdeas.length===0&&<p className="emptyBoard">No ideas yet.</p>}
+   {sortedIdeas.length>8&&<button className="viewIdeas" type="button" onClick={()=>setShowAllIdeas(v=>!v)}>{showAllIdeas?'View Less':`View More (${sortedIdeas.length-8} more)`}</button>}
+  </section>}
+  <nav className="mobilePhases" aria-label="Choose project">{visibleColumns.map((phase,index)=><button key={phase.id} type="button" className={activePhase===index?'active':''} aria-current={activePhase===index?'step':undefined} onClick={()=>setActivePhase(index)}>{phase.name}</button>)}</nav>
+  <section className="board" ref={boardRef} onTouchStart={e=>{if(window.innerWidth>700)return;const t=e.touches[0];touchStart.current={x:t.clientX,y:t.clientY};}} onTouchEnd={e=>{if(window.innerWidth>700||!touchStart.current)return;const t=e.changedTouches[0];const dx=t.clientX-touchStart.current.x;const dy=t.clientY-touchStart.current.y;touchStart.current=null;if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.4){setActivePhase(i=>Math.max(0,Math.min(visibleColumns.length-1,i+(dx<0?1:-1))));}}}>
+   {visibleColumns.map((phase,index)=>{const stat=phaseStats[phase.id];return <div data-mobile-active={activePhase===index} className={`column project-${phase.name.toLowerCase().replaceAll(' ','-')}`} key={phase.id} onDragOver={e=>{if(editable)e.preventDefault()}} onDrop={e=>{e.preventDefault();const id=e.dataTransfer.getData('taskId');if(id&&editable)void moveTask(id,phase.id)}}>
+    <div className="columnHead"><div><span className="phaseNum">PROJECT</span><h2>{phase.name}</h2><p>{stat.done}/{stat.total} completed</p></div><span className="count">{stat.total}</span></div>
+    <div className="cards">{board.tasks.filter(t=>t.phaseId===phase.id).sort(taskSort).map(task=><article draggable={canEditTask(task)} onDragStart={e=>{if(canEditTask(task))e.dataTransfer.setData('taskId',task.id);else e.preventDefault()}} onClick={()=>void openTask(task)} onKeyDown={e=>{if(e.key==='Enter'){void openTask(task)}}} role="button" tabIndex={0} className="card" key={task.id}>
+      <div className="cardTop"><div className="taskTags"><span className={`status ${task.status.replaceAll(' ','').toLowerCase()}`}>◉ {task.status}</span><span className={`importance ${task.importance.replaceAll(' ','').toLowerCase()}`}>☆ {task.importance}</span><span className={`priority ${task.priority.toLowerCase()}`}>⚑ {task.priority}</span></div>{task.attachments.length>0&&<span className="attachmentCount">📎 {task.attachments.length}</span>}</div><h3>{task.title}</h3>{task.description&&<p>{task.description}</p>}
       <div className="people"><b>Owner:</b> {task.owner||'Unassigned'}{task.contributors.length>0&&<span> +{task.contributors.length} contributor{task.contributors.length>1?'s':''}</span>}</div>
-      <div className="meta"><span>{task.dueDate?`Due ${task.dueDate}`:'No due date'}</span><span className="moveHint">Tap for details →</span></div>
+      <div className="meta"><span className={`dueBadge ${dueWarning(task.dueDate,task.status)}`}>{task.dueDate?`Due ${task.dueDate}`:'No due date'}</span><span className="moveHint">View details →</span></div>
     </article>)}</div>
-    {editable&&(newPhase===phase.id?<form className="quickAdd" onSubmit={e=>addTask(e,phase.id)}><input name="title" autoFocus placeholder={isIdeas?'Capture an idea...':'Task title'}/><div><button>Add</button><button type="button" className="ghost" onClick={()=>setNewPhase(null)}>Cancel</button></div></form>:<button className="addTask" onClick={()=>setNewPhase(phase.id)}>＋ {isIdeas?'Add idea / to-do':'Add task'}</button>)}
+    {editable&&(newPhase===phase.id?<form className="quickAdd" onSubmit={e=>addTask(e,phase.id)}><input name="title" required autoFocus placeholder="Task title"/><div><button>Add</button><button type="button" className="ghost" onClick={()=>setNewPhase(null)}>Cancel</button></div></form>:<button className="addTask" onClick={()=>setNewPhase(phase.id)}>＋ Add task</button>)}
    </div>})}
   </section>
   {admin&&usersOpen&&access&&<UserManagement projectId={access.projectId} onClose={()=>setUsersOpen(false)} onChanged={()=>void refresh()}/>}
-  {quickOpen&&<div className="overlay center" onMouseDown={()=>setQuickOpen(false)}><form className="quickModal" onMouseDown={e=>e.stopPropagation()} onSubmit={quickAdd}><div className="modalHead"><span>Quick Add</span><button type="button" onClick={()=>setQuickOpen(false)}>×</button></div><p>Capture it now. Organize it later.</p><input name="title" autoFocus placeholder="What's on your mind?"/><button className="wide">Add to Ideas / To-Do</button></form></div>}
+  {quickOpen&&<div className="overlay center" onMouseDown={()=>setQuickOpen(false)}><form className="quickModal" onMouseDown={e=>e.stopPropagation()} onSubmit={quickAdd}><div className="modalHead"><span>Quick Add</span><button type="button" onClick={()=>setQuickOpen(false)}>×</button></div><p>Capture it now. Organize it later.</p><input name="title" autoFocus required placeholder="What's on your mind?"/><label>Project <select value={newIdeaProject} onChange={e=>setNewIdeaProject(e.target.value)}>{projectNames.filter(n=>admin||!["Admin Task","Personal"].includes(n)).map(n=><option key={n}>{n}</option>)}</select></label><button className="wide">Add to Ideas / To-Do</button></form></div>}
   {selected&&<div className="overlay taskDialogOverlay" onMouseDown={()=>setSelected(null)}><section className="modal" onMouseDown={e=>e.stopPropagation()}><div className="modalHead"><span>Task details</span><button onClick={()=>setSelected(null)}>×</button></div>
    {canEditTask(selected)&&<fieldset className="taskEditable"><label>Title<input value={selected.title} onChange={e=>setSelected({...selected,title:e.target.value})} onBlur={()=>void updateTask(selected)}/></label>
    <label>Description<textarea rows={4} value={selected.description} onChange={e=>setSelected({...selected,description:e.target.value})} onBlur={()=>void updateTask(selected)}/></label>
@@ -228,7 +227,7 @@ const createTask = async (title: string, phaseId?: string) => {
    <label>Importance<select value={selected.importance} onChange={e=>updateTask({...selected,importance:e.target.value as Importance})}>{importanceOptions.map(x=><option key={x}>{x}</option>)}</select></label>
    <div className="grid2"><label>Task owner<input value={selected.owner} placeholder="One owner" onChange={e=>setSelected({...selected,owner:e.target.value})} onBlur={()=>void updateTask(selected)}/></label><label>Due date<input type="date" value={selected.dueDate} onChange={e=>updateTask({...selected,dueDate:e.target.value})}/></label></div>
    <ContributorsEditor key={selected.id} contributors={selected.contributors} members={members} onChange={contributors=>updateTask({...selected,contributors})}/>
-   <label>Move to<select value={selected.phaseId} onChange={e=>updateTask({...selected,phaseId:e.target.value})}>{board.phases.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select></label>
+   <label>Move to<select value={selected.phaseId} onChange={e=>updateTask({...selected,phaseId:e.target.value})}>{board.phases.filter(p=>admin||!['Admin Task','Personal'].includes(p.name)).map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select></label>
    </fieldset>}
    {!canEditTask(selected)&&<section className="taskReadOnly" aria-label="Task details (view only)">
     <p className="taskReadOnlyNotice">View only · You can see all task details but cannot change them.</p>
