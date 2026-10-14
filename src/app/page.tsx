@@ -317,8 +317,12 @@ const createTask = async (title: string, phaseId?: string, ideaProject='ATLAS360
     </form>
   </div>
 )}
-/></label><button className="wide">Add to Ideas / To-Do</button></form></div>}
-  {selected&&<div className="overlay taskDialogOverlay" onMouseDown={()=>setSelected(null)}><section className="modal" onMouseDown={e=>e.stopPropagation()}><div className="modalHead"><span>Task details</span><button onClick={()=>setSelected(null)}>×</button></div>
+      <button type="submit">
+        Add to Ideas / To-Do
+      </button>
+    </form>
+  </div>
+)}  {selected&&<div className="overlay taskDialogOverlay" onMouseDown={()=>setSelected(null)}><section className="modal" onMouseDown={e=>e.stopPropagation()}><div className="modalHead"><span>Task details</span><button onClick={()=>setSelected(null)}>×</button></div>
    {canEditTask(selected)&&<fieldset className="taskEditable"><label>Title<input value={selected.title} onChange={e=>setSelected({...selected,title:e.target.value})} onBlur={()=>void updateTask(selected)}/></label>
    <label>Description<textarea rows={4} value={selected.description} onChange={e=>setSelected({...selected,description:e.target.value})} onBlur={()=>void updateTask(selected)}/></label>
    <div className="grid2"><label>Status<select value={selected.status} onChange={e=>updateTask({...selected,status:e.target.value as Status})}>{statuses.map(x=><option key={x}>{x}</option>)}</select></label><label>Priority<select value={selected.priority} onChange={e=>updateTask({...selected,priority:e.target.value as Priority})}>{priorities.map(x=><option key={x}>{x}</option>)}</select></label></div>
