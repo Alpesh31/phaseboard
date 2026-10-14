@@ -293,3 +293,169 @@
   padding: 4px 8px;
   border-radius: 999px;
 }
+/* Ideas: project, status, priority on same row */
+
+.ideaCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ideaCardHeader .projectPill {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.ideaHeaderTags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.ideaHeaderTags .status,
+.ideaHeaderTags .priority {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 4px 7px;
+  border-radius: 999px;
+}
+
+/* Custom project dropdown */
+
+.projectPicker {
+  position: relative;
+  width: 100%;
+  min-width: 180px;
+}
+
+.projectPickerTrigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #1e293b;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.projectPickerTrigger:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.projectPickerTrigger:focus-visible,
+.projectPickerTrigger.isOpen {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  border-color: #2563eb;
+}
+
+.projectPickerDot {
+  display: inline-block;
+  flex: 0 0 9px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.projectPickerDot.project-atlas360 {
+  background: #2563eb;
+}
+
+.projectPickerDot.project-qe-tasks {
+  background: #7c3aed;
+}
+
+.projectPickerDot.project-admin-task {
+  background: #b7791f;
+}
+
+.projectPickerDot.project-personal {
+  background: #0f766e;
+}
+
+.projectPickerChevron {
+  margin-left: auto;
+  color: #64748b;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.projectPickerMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 10001;
+  padding: 5px;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .16);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.projectPickerOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #1e293b;
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.projectPickerOption:hover,
+.projectPickerOption:focus-visible {
+  background: #eff6ff;
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.projectPickerOption.selected {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.projectPickerCheck {
+  margin-left: auto;
+  font-weight: 700;
+}
+
+.ideaAdd label {
+  min-width: 190px;
+}
+
+@media (max-width: 700px) {
+  .ideaCardHeader {
+    align-items: flex-start;
+  }
+
+  .ideaHeaderTags {
+    margin-left: 0;
+  }
+}
