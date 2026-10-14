@@ -199,7 +199,14 @@ const createTask = async (title: string, phaseId?: string, ideaProject='ATLAS360
   {admin&&adminPanel&&<div className="overlay" onMouseDown={()=>setAdminPanel(false)}><section id="admin-visibility-panel" role="dialog" aria-modal="true" className="adminPanel phaseModal" onMouseDown={e=>e.stopPropagation()} aria-label="Phase access settings"><div className="modalHead"><h2>Phase access</h2><button type="button" onClick={()=>setAdminPanel(false)} aria-label="Close phase access">×</button></div><p>Editors can see phase columns to create their own private tasks. Viewers see a phase only when it is explicitly granted here or when a task in that phase is shared with them. Phase access never reveals other tasks.</p>{board.phases.map(phase=><div className="adminPhaseRow" key={phase.id}><strong>{phase.name}</strong><div className="adminMemberList"><button type="button" className="ghost" onClick={()=>void loadAccess('phase',phase.id)}>Refresh phase grants</button>{members.filter(m=>m.role==='viewer').length===0?<p>No Viewers have been added yet.</p>:members.filter(m=>m.role==='viewer').map(m=><label key={m.user_id}><input type="checkbox" checked={(allowed[phase.id]||[]).includes(m.user_id)} onChange={e=>void changeAccess('phase',phase.id,m.user_id,e.target.checked)}/>{m.display_name||m.email||m.user_id.slice(0,8)} (Viewer)</label>)}</div></div>)}</section></div>}
   {ideasPhase&&<section className="ideasStrip" aria-label="Ideas and to-do">
    <div className="ideasHeader"><div><span className="phaseNum">INBOX</span><h2>Ideas / To-Do <span className="count">{sortedIdeas.length}</span></h2></div>{editable&&<button className="addTask" type="button" onClick={()=>setNewPhase(ideasPhase.id)}>＋ Add idea</button>}</div>
-   {editable&&newPhase===ideasPhase.id&&<form className="quickAdd ideaAdd" onSubmit={e=>addTask(e,ideasPhase.id)}><input name="title" required autoFocus placeholder="Capture an idea..."/><label>Project <select value={newIdeaProject} onChange={e=>setNewIdeaProject(e.target.value)}>{projectNames.filter(n=>admin||!['Admin Task','Personal'].includes(n)).map(n=><option key={n}>{n}</option>)}</select></label><button>Add</button><button type="button" className="ghost" onClick={()=>setNewPhase(null)}>Cancel</button></form>}
+   {editable&&newPhase===ideasPhase.id&&<form className="quickAdd ideaAdd" onSubmit={e=>addTask(e,ideasPhase.id)}><input name="title" required autoFocus placeholder="Capture an idea..."/><label>Project <ProjectPicker
+  value={newIdeaProject}
+  onChange={setNewIdeaProject}
+  options={projectNames.filter(
+    (name) =>
+      admin || !["Admin Task", "Personal"].includes(name)
+  )}
+/></label><button>Add</button><button type="button" className="ghost" onClick={()=>setNewPhase(null)}>Cancel</button></form>}
    <div className="ideasGrid">{displayedIdeas.map(idea=>{const task=board.tasks.find(t=>t.id===idea.task_id);const privateIdea=!task;const warning=dueWarning(idea.due_date||'',idea.status);return <article key={idea.task_id} className={`card ideaCard project-${idea.idea_project.toLowerCase().replaceAll(' ','-')} ${privateIdea?'privatePreview':''}`} role={task?'button':undefined} tabIndex={task?0:undefined} onClick={()=>{if(task)void openTask(task)}} onKeyDown={e=>{if(task&&(e.key==='Enter'||e.key===' ')){e.preventDefault();void openTask(task)}}}>
 <div className="ideaCardHeader">
   <span className="projectPill">
@@ -254,7 +261,14 @@ const createTask = async (title: string, phaseId?: string, ideaProject='ATLAS360
    </div>})}
   </section>
   {admin&&usersOpen&&access&&<UserManagement projectId={access.projectId} onClose={()=>setUsersOpen(false)} onChanged={()=>void refresh()}/>}
-  {quickOpen&&<div className="overlay center" onMouseDown={()=>setQuickOpen(false)}><form className="quickModal" onMouseDown={e=>e.stopPropagation()} onSubmit={quickAdd}><div className="modalHead"><span>Quick Add</span><button type="button" onClick={()=>setQuickOpen(false)}>×</button></div><p>Capture it now. Organize it later.</p><input name="title" autoFocus required placeholder="What's on your mind?"/><label>Project <select value={newIdeaProject} onChange={e=>setNewIdeaProject(e.target.value)}>{projectNames.filter(n=>admin||!["Admin Task","Personal"].includes(n)).map(n=><option key={n}>{n}</option>)}</select></label><button className="wide">Add to Ideas / To-Do</button></form></div>}
+  {quickOpen&&<div className="overlay center" onMouseDown={()=>setQuickOpen(false)}><form className="quickModal" onMouseDown={e=>e.stopPropagation()} onSubmit={quickAdd}><div className="modalHead"><span>Quick Add</span><button type="button" onClick={()=>setQuickOpen(false)}>×</button></div><p>Capture it now. Organize it later.</p><input name="title" autoFocus required placeholder="What's on your mind?"/><label>Project <ProjectPicker
+  value={newIdeaProject}
+  onChange={setNewIdeaProject}
+  options={projectNames.filter(
+    (name) =>
+      admin || !["Admin Task", "Personal"].includes(name)
+  )}
+/></label><button className="wide">Add to Ideas / To-Do</button></form></div>}
   {selected&&<div className="overlay taskDialogOverlay" onMouseDown={()=>setSelected(null)}><section className="modal" onMouseDown={e=>e.stopPropagation()}><div className="modalHead"><span>Task details</span><button onClick={()=>setSelected(null)}>×</button></div>
    {canEditTask(selected)&&<fieldset className="taskEditable"><label>Title<input value={selected.title} onChange={e=>setSelected({...selected,title:e.target.value})} onBlur={()=>void updateTask(selected)}/></label>
    <label>Description<textarea rows={4} value={selected.description} onChange={e=>setSelected({...selected,description:e.target.value})} onBlur={()=>void updateTask(selected)}/></label>
@@ -321,4 +335,105 @@ const label = (id: string) => {
   {open&&<div id="contributor-options" className="contributorOptions" role="listbox">{choices.map(m=><button type="button" role="option" aria-selected={false} key={m.user_id} onClick={()=>{onChange([...contributors,m.user_id]);setQuery('');setOpen(false)}}>{m.display_name||m.email||m.user_id}<small>{m.email&&m.display_name?m.email:m.role}</small></button>)}{choices.length===0&&<p>No matching members</p>}</div>}</div>
   <p className="contributorHelp">Choose existing project members. Previously entered free-text contributors remain visible until removed.</p>
  </div>;
+}
+function ProjectPicker({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const outside = (event: PointerEvent) => {
+      if (
+        root.current &&
+        !root.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        root.current
+          ?.querySelector<HTMLButtonElement>(
+            ".projectPickerTrigger"
+          )
+          ?.focus();
+      }
+    };
+
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
+
+  return (
+    <div className="projectPicker" ref={root}>
+      <button
+        type="button"
+        className={`projectPickerTrigger ${open ? "isOpen" : ""}`}
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-label={`Project: ${value}`}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span
+          className={`projectPickerDot project-${value
+            .toLowerCase()
+            .replaceAll(" ", "-")}`}
+        />
+        <span>{value}</span>
+        <span className="projectPickerChevron" aria-hidden="true">
+          ⌄
+        </span>
+      </button>
+
+      {open && (
+        <div className="projectPickerMenu">
+          {options.map((name) => (
+            <button
+              key={name}
+              type="button"
+              className={`projectPickerOption ${
+                value === name ? "selected" : ""
+              }`}
+              aria-pressed={value === name}
+              onClick={() => {
+                onChange(name);
+                setOpen(false);
+              }}
+            >
+              <span
+                className={`projectPickerDot project-${name
+                  .toLowerCase()
+                  .replaceAll(" ", "-")}`}
+              />
+              <span>{name}</span>
+              {value === name && (
+                <span
+                  className="projectPickerCheck"
+                  aria-hidden="true"
+                >
+                  ✓
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
