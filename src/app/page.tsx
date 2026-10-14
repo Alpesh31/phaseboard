@@ -215,13 +215,21 @@ const createTask = async (title: string, phaseId?: string, ideaProject='ATLAS360
 
   {!privateIdea && (
     <div className="ideaHeaderTags">
-      <span className={`status ${idea.status.replaceAll(" ", "").toLowerCase()}`}>
-        {idea.status}
-      </span>
-      <span className={`priority ${idea.priority.toLowerCase()}`}>
-        ⚑ {idea.priority}
-      </span>
-    </div>
+  <span
+    className={`status ${(task?.status ?? idea.status)
+      .replaceAll(" ", "")
+      .toLowerCase()}`}
+  >
+    {task?.status ?? idea.status}
+  </span>
+
+  <span
+    className={`priority ${(task?.priority ?? idea.priority)
+      .toLowerCase()}`}
+  >
+    ⚑ {task?.priority ?? idea.priority}
+  </span>
+</div>
   )}
 </div>
 
