@@ -261,13 +261,62 @@ const createTask = async (title: string, phaseId?: string, ideaProject='ATLAS360
    </div>})}
   </section>
   {admin&&usersOpen&&access&&<UserManagement projectId={access.projectId} onClose={()=>setUsersOpen(false)} onChanged={()=>void refresh()}/>}
-  {quickOpen&&<div className="overlay center" onMouseDown={()=>setQuickOpen(false)}><form className="quickModal" onMouseDown={e=>e.stopPropagation()} onSubmit={quickAdd}><div className="modalHead"><span>Quick Add</span><button type="button" onClick={()=>setQuickOpen(false)}>×</button></div><p>Capture it now. Organize it later.</p><input name="title" autoFocus required placeholder="What's on your mind?"/><label>Project <ProjectPicker
-  value={newIdeaProject}
-  onChange={setNewIdeaProject}
-  options={projectNames.filter(
-    (name) =>
-      admin || !["Admin Task", "Personal"].includes(name)
-  )}
+  {quickOpen && (
+  <div
+    className="overlay center"
+    onMouseDown={() => setQuickOpen(false)}
+  >
+    <form
+      className="quickModal"
+      onMouseDown={(e) => e.stopPropagation()}
+      onSubmit={quickAdd}
+    >
+      <div className="modalHead">
+        <span>Quick Add</span>
+        <button
+          type="button"
+          onClick={() => setQuickOpen(false)}
+          aria-label="Close Quick Add"
+        >
+          ×
+        </button>
+      </div>
+
+      <p>Capture it now. Organize it later.</p>
+
+      <div className="quickAddField">
+        <label className="quickAddLabel" htmlFor="quickTaskTitle">
+          Task title
+        </label>
+
+        <input
+          id="quickTaskTitle"
+          name="title"
+          autoFocus
+          required
+          placeholder="What's on your mind?"
+        />
+      </div>
+
+      <div className="quickAddField">
+        <span className="quickAddLabel">Project</span>
+
+        <ProjectPicker
+          value={newIdeaProject}
+          onChange={setNewIdeaProject}
+          options={projectNames.filter(
+            (name) =>
+              admin || !["Admin Task", "Personal"].includes(name)
+          )}
+        />
+      </div>
+
+      <button type="submit">
+        Add to Ideas / To-Do
+      </button>
+    </form>
+  </div>
+)}
 /></label><button className="wide">Add to Ideas / To-Do</button></form></div>}
   {selected&&<div className="overlay taskDialogOverlay" onMouseDown={()=>setSelected(null)}><section className="modal" onMouseDown={e=>e.stopPropagation()}><div className="modalHead"><span>Task details</span><button onClick={()=>setSelected(null)}>×</button></div>
    {canEditTask(selected)&&<fieldset className="taskEditable"><label>Title<input value={selected.title} onChange={e=>setSelected({...selected,title:e.target.value})} onBlur={()=>void updateTask(selected)}/></label>
