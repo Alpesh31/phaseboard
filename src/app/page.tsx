@@ -201,8 +201,43 @@ const createTask = async (title: string, phaseId?: string, ideaProject='ATLAS360
    <div className="ideasHeader"><div><span className="phaseNum">INBOX</span><h2>Ideas / To-Do <span className="count">{sortedIdeas.length}</span></h2></div>{editable&&<button className="addTask" type="button" onClick={()=>setNewPhase(ideasPhase.id)}>＋ Add idea</button>}</div>
    {editable&&newPhase===ideasPhase.id&&<form className="quickAdd ideaAdd" onSubmit={e=>addTask(e,ideasPhase.id)}><input name="title" required autoFocus placeholder="Capture an idea..."/><label>Project <select value={newIdeaProject} onChange={e=>setNewIdeaProject(e.target.value)}>{projectNames.filter(n=>admin||!['Admin Task','Personal'].includes(n)).map(n=><option key={n}>{n}</option>)}</select></label><button>Add</button><button type="button" className="ghost" onClick={()=>setNewPhase(null)}>Cancel</button></form>}
    <div className="ideasGrid">{displayedIdeas.map(idea=>{const task=board.tasks.find(t=>t.id===idea.task_id);const privateIdea=!task;const warning=dueWarning(idea.due_date||'',idea.status);return <article key={idea.task_id} className={`card ideaCard project-${idea.idea_project.toLowerCase().replaceAll(' ','-')} ${privateIdea?'privatePreview':''}`} role={task?'button':undefined} tabIndex={task?0:undefined} onClick={()=>{if(task)void openTask(task)}} onKeyDown={e=>{if(task&&(e.key==='Enter'||e.key===' ')){e.preventDefault();void openTask(task)}}}>
-    <span className="projectPill">{idea.idea_project}</span><h3>{task?.title||idea.title}</h3>{privateIdea?<p className="privateLabel">Restricted preview · Details not shared</p>:<div className="taskTags"><span className={`priority ${idea.priority.toLowerCase()}`}>⚑ {idea.priority}</span><span className="status">{idea.status}</span></div>}{!privateIdea&&idea.due_date&&<p className={`dueBadge ${warning}`}>Due {idea.due_date}{warning==='urgent'?' · Urgent':warning==='soon'?' · Soon':warning==='upcoming'?' · Upcoming':''}</p>}
-   </article>})}</div>
+<div className="ideaCardHeader">
+  <span className="projectPill">
+    {idea.idea_project}
+  </span>
+
+  {!privateIdea && (
+    <div className="ideaHeaderTags">
+      <span className={`status ${idea.status.replaceAll(" ", "").toLowerCase()}`}>
+        {idea.status}
+      </span>
+      <span className={`priority ${idea.priority.toLowerCase()}`}>
+        ⚑ {idea.priority}
+      </span>
+    </div>
+  )}
+</div>
+
+<h3>{task?.title || idea.title}</h3>
+
+{privateIdea ? (
+  <p className="privateLabel">
+    Restricted preview · Details not shared
+  </p>
+) : null}
+
+{!privateIdea && idea.due_date && (
+  <p className={`dueBadge ${warning}`}>
+    Due {idea.due_date}
+    {warning === "urgent"
+      ? " · Urgent"
+      : warning === "soon"
+      ? " · Soon"
+      : warning === "upcoming"
+      ? " · Upcoming"
+      : ""}
+  </p>
+)}   </article>})}</div>
    {sortedIdeas.length===0&&<p className="emptyBoard">No ideas yet.</p>}
    {sortedIdeas.length>8&&<button className="viewIdeas" type="button" onClick={()=>setShowAllIdeas(v=>!v)}>{showAllIdeas?'View Less':`View More (${sortedIdeas.length-8} more)`}</button>}
   </section>}
